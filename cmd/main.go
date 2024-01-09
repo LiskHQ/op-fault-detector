@@ -7,7 +7,6 @@ import (
 
 func main() {
 	logger, err := log.NewDefaultProductionLogger()
-
 	if err != nil {
 		panic(err)
 	}

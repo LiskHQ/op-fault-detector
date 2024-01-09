@@ -142,3 +142,6 @@ func (l *logger) With(kv ...interface{}) Logger {
 		zlog: l.zlog.With(kv...),
 	}
 }
+
+// Ensure logger conforms to the Logger interface.
+var _ Logger = (*logger)(nil)

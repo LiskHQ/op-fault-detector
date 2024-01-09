@@ -1,0 +1,59 @@
+run:
+  timeout: 5m
+  go: "1.19"
+  skip-files:
+    - "bindata.go"
+
+linters:
+  disable-all: true
+  fast: false
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - goimports
+    - staticcheck
+    - typecheck
+    - unused
+    - whitespace
+    - errname
+    - godot
+    - exportloopref
+    - goconst
+    - gocritic
+    - gosec
+    - misspell
+    - nakedret
+    - nolintlint
+    - stylecheck
+    - unconvert
+    - usestdlibvars
+    - revive
+    - reassign
+    - predeclared
+    - errorlint
+    # - testpackage // Consider to adopt in the future
+
+issues:
+  exclude-rules:
+    - source: "(noinspection|TODO)"
+      linters: [ godot ]
+    - path: "_test\\.go"
+      linters:
+        - goconst
+        - gosec
+        - errcheck
+    - text: "Use of weak random number generator"
+      linters:
+        - gosec
+  max-same-issues: 50
+
+linters-settings:
+  revive:
+    enable-all-rules: false
+    rules:
+      - name: var-naming
+        disabled: true
+  stylecheck:
+   checks: ["*", "-ST1003"]

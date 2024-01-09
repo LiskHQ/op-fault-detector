@@ -1,2 +1,2 @@
-// Package faultdetector implements Optimisim fault detector
+// Package faultdetector implements Optimism fault detector
 package faultdetector
