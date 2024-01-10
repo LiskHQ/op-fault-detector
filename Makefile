@@ -15,5 +15,5 @@ format:
 	gofmt -s -w .
 godocs:
 	@go install golang.org/x/tools/cmd/godoc@latest
-	@echo "open http://localhost:6060/pkg/github.com/LiskHQ/lisk-engine"
+	@echo "open http://localhost:6060/pkg/github.com/LiskHQ/op-fault-detector"
 	 godoc -http=:6060
