@@ -106,7 +106,7 @@ var DEFAULT_L2_CONTRACT_ADDRESS = DefaultL2ContractAddress{
 func FilterAddressByNetwork(c NetworkType, network string) string {
 	ref := reflect.ValueOf(c)
 	f := reflect.Indirect(ref).FieldByName(network)
-	return string(f.String())
+	return f.String()
 }
 
 func getL1ContractsByNetworkName(network string) L1Contracts {
