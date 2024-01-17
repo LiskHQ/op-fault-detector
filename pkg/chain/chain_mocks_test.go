@@ -10,17 +10,6 @@ import (
 )
 
 // Mock function
-
-type MockEthClient struct {
-	mock.Mock
-}
-
-func (e *MockEthClient) Dial(url string) (APIClientInterface, error) {
-	ret := e.Called(url)
-
-	return ret.Get(0).(APIClientInterface), ret.Error(1)
-}
-
 type MockAPIClient struct {
 	mock.Mock
 }
@@ -50,7 +39,7 @@ type MockRPCClient struct {
 	mock.Mock
 }
 
-func (c *MockAPIClient) Call(result interface{}, method string, args ...interface{}) error {
+func (c *MockRPCClient) Call(result interface{}, method string, args ...interface{}) error {
 	ret := c.Called()
 
 	ptr := &result
