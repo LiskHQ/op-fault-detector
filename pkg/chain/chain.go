@@ -22,7 +22,7 @@ type ChainAPIClient struct {
 	log log.Logger
 }
 
-type proofResponse struct {
+type ProofResponse struct {
 	Address      common.Address  `json:"address"`
 	AccountProof []hexutil.Bytes `json:"accountProof"`
 	Balance      *hexutil.Big    `json:"balance"`
@@ -61,8 +61,8 @@ func (c *ChainAPIClient) GetBlockByNumber(ctx context.Context, blockNumber *big.
 }
 
 // GetProof returns the account and storage values, including the Merkle proof, of the specified account/address.
-func (c *ChainAPIClient) GetProof(ctx context.Context, blockNumber *big.Int, address common.Address) (*proofResponse, error) {
-	var result proofResponse
+func (c *ChainAPIClient) GetProof(ctx context.Context, blockNumber *big.Int, address common.Address) (*ProofResponse, error) {
+	var result ProofResponse
 
 	if err := c.eth.Client().CallContext(ctx, &result, rpcEndpointGetProof, address, []string{}, hexutil.Big(*blockNumber)); err != nil {
 		return nil, err
