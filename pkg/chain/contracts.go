@@ -11,15 +11,15 @@ import (
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 )
 
-func GetOracleAddressbyChainID(l2ChainID int) string {
-	ContractAddresses := getContractAddresses()
-	address := ContractAddresses[l2ChainID]["l1"].L2OutputOracle
+func GetL1OracleContractAddressByChainID(chainID uint64) string {
+	ContractAddresses := GetContractAddresses(chainID)
+	address := ContractAddresses["l1"].l2OutputOracle
 	return address
 }
 
 // TODO: Create oracle Struct with required functions
-func OracleContractInstance(client *ethclient.Client, l2ChainID int, log log.Logger) (*bindings.L2OutputOracle, error) {
-	oracleContractAddress := GetOracleAddressbyChainID(l2ChainID)
+func OracleContractInstance(client *ethclient.Client, chainID uint64, log log.Logger) (*bindings.L2OutputOracle, error) {
+	oracleContractAddress := GetL1OracleContractAddressByChainID(chainID)
 
 	contract, err := bindings.NewL2OutputOracle(common.HexToAddress(oracleContractAddress), client)
 
@@ -31,14 +31,14 @@ func OracleContractInstance(client *ethclient.Client, l2ChainID int, log log.Log
 }
 
 // TODO: Use EthClientInterface
-func CreateContractInstance(url string, l2ChainID int, logger log.Logger) *bindings.L2OutputOracle {
+func CreateContractInstance(url string, chainID uint64, logger log.Logger) *bindings.L2OutputOracle {
 	client, err := ethclient.Dial(url)
 
 	if err != nil {
 		logger.Errorf("Error occurred while connecting %w", err)
 	}
 
-	contract, err := OracleContractInstance(client, l2ChainID, logger)
+	contract, err := OracleContractInstance(client, chainID, logger)
 
 	if err != nil {
 		logger.Errorf("Error occurred while creating contract instance %w", err)
