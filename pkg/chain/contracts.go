@@ -11,53 +11,41 @@ import (
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 )
 
+// OracleContract binds oracle contract to an instance for querying data.
 type OracleContract struct {
 	contractInstance *bindings.L2OutputOracle
 	log              log.Logger
 }
 
-func SetContractInstance(contractInstance *bindings.L2OutputOracle, log log.Logger) (*OracleContract, error) {
-	return &OracleContract{
-		contractInstance: contractInstance,
-		log:              log,
-	}, nil
-}
-
+// GetL1OracleContractAddressByChainID returns L1 oracle contract address by chainID.
 func GetL1OracleContractAddressByChainID(chainID uint64) string {
 	ContractAddresses := GetContractAddressesByChainID(chainID)
 	address := ContractAddresses["l1"].l2OutputOracle
 	return address
 }
 
-func OracleContractInstance(client *ethclient.Client, chainID uint64, log log.Logger) (*bindings.L2OutputOracle, error) {
-	oracleContractAddress := GetL1OracleContractAddressByChainID(chainID)
-
-	contract, err := bindings.NewL2OutputOracle(common.HexToAddress(oracleContractAddress), client)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return contract, nil
-}
-
-// CreateContractInstance return [OracleContract] with contract instance.
-func CreateContractInstance(url string, chainID uint64, logger log.Logger) (*OracleContract, error) {
+// CreateOracleContractInstance returns [OracleContract] with contract instance.
+func CreateOracleContractInstance(url string, chainID uint64, logger log.Logger) (*OracleContract, error) {
 	client, err := ethclient.Dial(url)
 
 	if err != nil {
-		logger.Errorf("Error occurred while connecting %w", err)
+		return nil, err
 	}
 
-	contractInstance, err := OracleContractInstance(client, chainID, logger)
+	oracleContractAddress := GetL1OracleContractAddressByChainID(chainID)
+	contractInstance, err := bindings.NewL2OutputOracle(common.HexToAddress(oracleContractAddress), client)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return SetContractInstance(contractInstance, logger)
+	return &OracleContract{
+		contractInstance: contractInstance,
+		log:              logger,
+	}, nil
 }
 
+// GetNextOutputIndex returns index of next output to be proposed.
 func (oc *OracleContract) GetNextOutputIndex() *big.Int {
 	nextOutputIndex, err := oc.contractInstance.NextOutputIndex(&bind.CallOpts{})
 
@@ -68,6 +56,7 @@ func (oc *OracleContract) GetNextOutputIndex() *big.Int {
 	return nextOutputIndex
 }
 
+// GetL2Output returns L2 output at given index.
 func (oc *OracleContract) GetL2Output(index *big.Int) bindings.TypesOutputProposal {
 	l2Output, err := oc.contractInstance.GetL2Output(&bind.CallOpts{}, index)
 
