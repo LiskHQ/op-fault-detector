@@ -16,7 +16,7 @@ const (
 	rpcEndpointGetProof = "eth_getProof"
 )
 
-// ChainAPIClient connects and encapsulates all the methods to interact with the a chain.
+// ChainAPIClient connects and encapsulates all the methods to interact with a chain.
 type ChainAPIClient struct {
 	eth *ethclient.Client
 	log log.Logger
@@ -32,7 +32,7 @@ type proofResponse struct {
 	StorageProof []common.Hash   `json:"storageProof"`
 }
 
-// GetAPIClient return [ChainAPIClient] with client attached.
+// GetAPIClient returns [ChainAPIClient] with client attached.
 func GetAPIClient(ctx context.Context, url string, log log.Logger) (*ChainAPIClient, error) {
 	client, err := ethclient.DialContext(ctx, url)
 	if err != nil {
@@ -45,22 +45,22 @@ func GetAPIClient(ctx context.Context, url string, log log.Logger) (*ChainAPICli
 	}, nil
 }
 
-// Returns chainID of the connected node.
+// GetChainID returns chainID of a connected node.
 func (c *ChainAPIClient) GetChainID(ctx context.Context) (*big.Int, error) {
 	return c.eth.ChainID(ctx)
 }
 
-// Returns latest block number from the connected node.
+// GetLatestBlockNumber returns latest block number from a connected node.
 func (c *ChainAPIClient) GetLatestBlockNumber(ctx context.Context) (uint64, error) {
 	return c.eth.BlockNumber(ctx)
 }
 
-// Returns block for a given block number from the connected node.
+// GetBlockByNumber returns block for a given block number from a connected node.
 func (c *ChainAPIClient) GetBlockByNumber(ctx context.Context, blockNumber *big.Int) (*types.Block, error) {
 	return c.eth.BlockByNumber(ctx, blockNumber)
 }
 
-// Returns the account and storage values, including the Merkle proof, of the specified account/address.
+// GetProof returns the account and storage values, including the Merkle proof, of the specified account/address.
 func (c *ChainAPIClient) GetProof(ctx context.Context, blockNumber *big.Int, address common.Address) (*proofResponse, error) {
 	var result proofResponse
 
