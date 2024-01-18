@@ -2,86 +2,59 @@ package chain
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
-)
-
-const (
-	fake_url = "localhost:8080"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestNewChainAPIClient(t *testing.T) {
 	log := log.DefaultLogger
 
-	chainClient, _ := NewChainAPIClient(log)
-	assert.Equal(t, chainClient.log, log)
-}
-
-func TestConnect(t *testing.T) {
-	log := log.DefaultLogger
-	ethClientMock := &MockEthClient{}
-
 	apiClientMock := &MockAPIClient{}
-	ethClientMock.On("Dial", fake_url).Return(apiClientMock, nil)
-
-	chainClient, _ := NewChainAPIClient(log)
-	chainClient.Connect(ethClientMock, fake_url)
-
+	chainClient, _ := NewChainAPIClient(apiClientMock, log)
 	assert.Equal(t, chainClient.log, log)
 }
 
 func TestGetChainID(t *testing.T) {
+	ctx := context.Background()
 	log := log.DefaultLogger
-	ethClientMock := &MockEthClient{}
-
 	apiClientMock := &MockAPIClient{}
-	ethClientMock.On("Dial", fake_url).Return(apiClientMock, nil)
-
-	chainClient, _ := NewChainAPIClient(log)
-	chainClient.Connect(ethClientMock, fake_url)
+	chainClient, _ := NewChainAPIClient(apiClientMock, log)
 
 	assert.Equal(t, chainClient.log, log)
 
 	expectedChainID := big.NewInt(2)
 	apiClientMock.On("ChainID", context.Background()).Return(expectedChainID, nil)
-	receivedChainID, _ := chainClient.GetChainID()
+	receivedChainID, _ := chainClient.GetChainID(ctx)
 	assert.Equal(t, expectedChainID, receivedChainID)
 }
 
 func TestGetLatestBlockNumber(t *testing.T) {
+	ctx := context.Background()
 	log := log.DefaultLogger
-	ethClientMock := &MockEthClient{}
-
 	apiClientMock := &MockAPIClient{}
-	ethClientMock.On("Dial", fake_url).Return(apiClientMock, nil)
-
-	chainClient, _ := NewChainAPIClient(log)
-	chainClient.Connect(ethClientMock, fake_url)
+	chainClient, _ := NewChainAPIClient(apiClientMock, log)
 
 	assert.Equal(t, chainClient.log, log)
 
 	expectedLatestBlockNumber := uint64(12345)
 	apiClientMock.On("BlockNumber", context.Background()).Return(expectedLatestBlockNumber, nil)
-	receivedLatestBlockNumber, _ := chainClient.GetLatestBlockNumber()
+	receivedLatestBlockNumber, _ := chainClient.GetLatestBlockNumber(ctx)
 	assert.Equal(t, expectedLatestBlockNumber, receivedLatestBlockNumber)
 }
 
 func TestGetBlockByNumber(t *testing.T) {
+	ctx := context.Background()
 	log := log.DefaultLogger
-	ethClientMock := &MockEthClient{}
-
 	apiClientMock := &MockAPIClient{}
-	ethClientMock.On("Dial", fake_url).Return(apiClientMock, nil)
-
-	chainClient, _ := NewChainAPIClient(log)
-	chainClient.Connect(ethClientMock, fake_url)
+	chainClient, _ := NewChainAPIClient(apiClientMock, log)
 
 	assert.Equal(t, chainClient.log, log)
 
@@ -90,30 +63,29 @@ func TestGetBlockByNumber(t *testing.T) {
 		ReceivedAt: time.Now(),
 	}
 	apiClientMock.On("BlockByNumber", context.Background(), blockNumber).Return(expectedBlock, nil)
-	receivedBlock, _ := chainClient.GetBlockByNumber(blockNumber)
+	receivedBlock, _ := chainClient.GetBlockByNumber(ctx, blockNumber)
 	assert.Equal(t, expectedBlock, receivedBlock)
 }
 
 func TestGetProof(t *testing.T) {
-	t.Skip("skipping testing")
+	// t.Skipf("Skipping GetProof test")
 	log := log.DefaultLogger
-	ethClientMock := &MockEthClient{}
-
 	apiClientMock := &MockAPIClient{}
-	ethClientMock.On("Dial", fake_url).Return(apiClientMock, nil)
-
-	chainClient, _ := NewChainAPIClient(log)
-	chainClient.Connect(ethClientMock, fake_url)
+	chainClient, _ := NewChainAPIClient(apiClientMock, log)
 
 	assert.Equal(t, chainClient.log, log)
 
 	rpcClientMock := &MockRPCClient{}
-	apiClientMock.On("Client").Return(rpcClientMock, nil)
-
+	// Args for Call() method
 	address := common.Address{}
 	blockNumber := big.NewInt(800)
-	proofResponseExpected := &ProofResponse{}
-	rpcClientMock.On("Call", proofResponseExpected, RPCEndpointGetProof, address, []string{}, hexutil.EncodeBig(blockNumber)).Return(nil)
-	proofResponseRecieved, _ := chainClient.GetProof(blockNumber, address.Hex())
-	assert.Equal(t, proofResponseExpected, proofResponseRecieved)
+	var proofResponseExpected ProofResponse
+
+	apiClientMock.On("Client").Return(rpcClientMock, nil)
+	rpcClientMock.On("Call", mock.AnythingOfType("*chain.ProofResponse"), RPCEndpointGetProof, address.String(), []string{}, blockNumber).Return(fmt.Println("Error"))
+
+	proofResponseRecieved, err := chainClient.GetProof(rpcClientMock, blockNumber, address.Hex())
+
+	assert.NoError(t, err)
+	assert.Equal(t, &proofResponseExpected, proofResponseRecieved)
 }

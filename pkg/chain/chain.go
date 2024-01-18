@@ -9,31 +9,51 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
+const (
+	RPCEndpointGetProof = "eth_getProof"
+)
+
+type APIMethods interface {
+	ChainID(ctx context.Context) (*big.Int, error)
+	BlockNumber(ctx context.Context) (uint64, error)
+	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
+	Client() *rpc.Client
+}
+
+type RPCClient interface {
+	Call(result interface{}, method string, args ...interface{}) error
+}
+
+// GetAPIClient return [ChainAPIClient] with client attached.
+func GetAPIClient(url string, log log.Logger) (*ChainAPIClient, error) {
+	client, err := ethclient.Dial(url)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewChainAPIClient(client, log)
+}
+
 type ChainAPIClient struct {
-	client *APIClient
-	log    log.Logger
+	apiClient APIMethods
+	log       log.Logger
 }
 
 // NewChainAPIClient returns a [ChainAPIClient], wrapping all RPC endpoints to access chain related data.
-func NewChainAPIClient(log log.Logger) (*ChainAPIClient, error) {
+func NewChainAPIClient(apiClient APIMethods, log log.Logger) (*ChainAPIClient, error) {
 	return &ChainAPIClient{
-		log: log,
+		apiClient: apiClient,
+		log:       log,
 	}, nil
 }
 
-func (c *ChainAPIClient) Connect(ethClientObj EthClientInterface, url string) {
-	client, err := ethClientObj.Dial(url)
-	if err != nil {
-		c.log.Errorf("Error occurred while connecting %w", err)
-	}
-	c.client = NewAPIClient(client)
-}
-
 // Returns chainID of the connected node.
-func (c *ChainAPIClient) GetChainID() (*big.Int, error) {
-	chainID, err := c.client.ChainID(context.Background())
+func (c *ChainAPIClient) GetChainID(ctx context.Context) (*big.Int, error) {
+	chainID, err := c.apiClient.ChainID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -42,8 +62,8 @@ func (c *ChainAPIClient) GetChainID() (*big.Int, error) {
 }
 
 // Returns latest block number from the connected node.
-func (c *ChainAPIClient) GetLatestBlockNumber() (uint64, error) {
-	blockNumber, err := c.client.BlockNumber(context.Background())
+func (c *ChainAPIClient) GetLatestBlockNumber(ctx context.Context) (uint64, error) {
+	blockNumber, err := c.apiClient.BlockNumber(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -52,8 +72,8 @@ func (c *ChainAPIClient) GetLatestBlockNumber() (uint64, error) {
 }
 
 // Returns block for a given block number from the connected node.
-func (c *ChainAPIClient) GetBlockByNumber(blockNumber *big.Int) (*types.Block, error) {
-	block, err := c.client.BlockByNumber(context.Background(), blockNumber)
+func (c *ChainAPIClient) GetBlockByNumber(ctx context.Context, blockNumber *big.Int) (*types.Block, error) {
+	block, err := c.apiClient.BlockByNumber(ctx, blockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -71,16 +91,11 @@ type ProofResponse struct {
 	StorageProof []common.Hash   `json:"storageProof"`
 }
 
-const (
-	RPCEndpointGetProof = "eth_getProof"
-)
-
 // Returns the account and storage values, including the Merkle proof, of the specified account/address.
-func (c *ChainAPIClient) GetProof(blockNumber *big.Int, address string) (*ProofResponse, error) {
+func (c *ChainAPIClient) GetProof(client RPCClient, blockNumber *big.Int, address string) (*ProofResponse, error) {
 	var result ProofResponse
 
-	rpcClient := &RPCClient{c.client}
-	if err := rpcClient.Call(&result, RPCEndpointGetProof, address, []string{}, hexutil.EncodeBig(blockNumber)); err != nil {
+	if err := client.Call(&result, RPCEndpointGetProof, address, []string{}, blockNumber); err != nil {
 		return nil, err
 	}
 
