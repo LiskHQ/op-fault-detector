@@ -11,10 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
-)
-
-const (
-	fake_url = "localhost:8080"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestNewChainAPIClient(t *testing.T) {
@@ -85,9 +82,10 @@ func TestGetProof(t *testing.T) {
 	var proofResponseExpected ProofResponse
 
 	apiClientMock.On("Client").Return(rpcClientMock, nil)
-	rpcClientMock.On("Call", &proofResponseExpected, RPCEndpointGetProof, address.String(), []string{}, blockNumber).Return(fmt.Println("Error"))
+	rpcClientMock.On("Call", mock.AnythingOfType("*chain.ProofResponse"), RPCEndpointGetProof, address.String(), []string{}, blockNumber).Return(fmt.Println("Error"))
 
-	proofResponseRecieved, _ := chainClient.GetProof(rpcClientMock, blockNumber, address.Hex())
+	proofResponseRecieved, err := chainClient.GetProof(rpcClientMock, blockNumber, address.Hex())
 
-	assert.Equal(t, proofResponseExpected, proofResponseRecieved)
+	assert.NoError(t, err)
+	assert.Equal(t, &proofResponseExpected, proofResponseRecieved)
 }

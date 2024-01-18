@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Mock function
 type MockAPIClient struct {
 	mock.Mock
 }
@@ -40,7 +39,9 @@ type MockRPCClient struct {
 }
 
 func (c *MockRPCClient) Call(result interface{}, method string, args ...interface{}) error {
-	ret := c.Called()
+	allArgs := []interface{}{result, method}
+	allArgs = append(allArgs, args...)
+	ret := c.Called(allArgs...)
 
 	ptr := &result
 	*ptr = ret.Get(0)
