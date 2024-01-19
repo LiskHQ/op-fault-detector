@@ -11,58 +11,46 @@ import (
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 )
 
-// OracleContract binds oracle contract to an instance for querying data.
-type OracleContract struct {
+// OracleAccessor binds oracle contract to an instance for querying data.
+type OracleAccessor struct {
 	contractInstance *bindings.L2OutputOracle
 	log              log.Logger
 }
 
-// GetL1OracleContractAddressByChainID returns L1 oracle contract address by chainID.
-func GetL1OracleContractAddressByChainID(chainID uint64) string {
+// getL1OracleContractAddressByChainID returns L1 oracle contract address by chainID.
+func getL1OracleContractAddressByChainID(chainID uint64) string {
 	ContractAddresses := GetContractAddressesByChainID(chainID)
 	address := ContractAddresses["l1"].l2OutputOracle
 	return address
 }
 
-// CreateOracleContractInstance returns [OracleContract] with contract instance.
-func CreateOracleContractInstance(url string, chainID uint64, logger log.Logger) (*OracleContract, error) {
+// NewOracleContract returns [OracleAccessor] with contract instance.
+func NewOracleContract(url string, chainID uint64, logger log.Logger) (*OracleAccessor, error) {
 	client, err := ethclient.Dial(url)
 
 	if err != nil {
 		return nil, err
 	}
 
-	oracleContractAddress := GetL1OracleContractAddressByChainID(chainID)
+	oracleContractAddress := getL1OracleContractAddressByChainID(chainID)
 	contractInstance, err := bindings.NewL2OutputOracle(common.HexToAddress(oracleContractAddress), client)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &OracleContract{
+	return &OracleAccessor{
 		contractInstance: contractInstance,
 		log:              logger,
 	}, nil
 }
 
 // GetNextOutputIndex returns index of next output to be proposed.
-func (oc *OracleContract) GetNextOutputIndex() *big.Int {
-	nextOutputIndex, err := oc.contractInstance.NextOutputIndex(&bind.CallOpts{})
-
-	if err != nil {
-		oc.log.Errorf("Error occurred while retrieving next output index %w", err)
-	}
-
-	return nextOutputIndex
+func (oc *OracleAccessor) GetNextOutputIndex() (*big.Int, error) {
+	return oc.contractInstance.NextOutputIndex(&bind.CallOpts{})
 }
 
 // GetL2Output returns L2 output at given index.
-func (oc *OracleContract) GetL2Output(index *big.Int) bindings.TypesOutputProposal {
-	l2Output, err := oc.contractInstance.GetL2Output(&bind.CallOpts{}, index)
-
-	if err != nil {
-		oc.log.Errorf("Error occurred while retrieving L2 outout %w", err)
-	}
-
-	return l2Output
+func (oc *OracleAccessor) GetL2Output(index *big.Int) (bindings.TypesOutputProposal, error) {
+	return oc.contractInstance.GetL2Output(&bind.CallOpts{}, index)
 }
