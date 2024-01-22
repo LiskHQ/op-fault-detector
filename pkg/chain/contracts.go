@@ -33,8 +33,8 @@ func getL1OracleContractAddressByChainID(chainID uint64) (string, bool) {
 	return cAddr.l2OutputOracle, true
 }
 
-// NewOracleContract returns [OracleAccessor] with contract instance.
-func NewOracleContract(ctx context.Context, opts *ConfigOptions) (*OracleAccessor, error) {
+// NewOracleAccessor returns [OracleAccessor] with contract instance.
+func NewOracleAccessor(ctx context.Context, opts *ConfigOptions) (*OracleAccessor, error) {
 	client, err := ethclient.DialContext(ctx, opts.L1RPCEndpoint)
 	if err != nil {
 		return nil, err
@@ -45,11 +45,10 @@ func NewOracleContract(ctx context.Context, opts *ConfigOptions) (*OracleAccesso
 	// Verify if oracle contract address is available in the chain constants
 	// If not available, use l2OutputContractAddress from the config options
 	if !isAddressExists {
-		if len(opts.L2OutputOracleContractAddress) > 0 {
-			oracleContractAddress = opts.L2OutputOracleContractAddress
-		} else {
+		if len(opts.L2OutputOracleContractAddress) == 0 {
 			return nil, fmt.Errorf("L2OutputOracleContractAddress is not available")
 		}
+		oracleContractAddress = opts.L2OutputOracleContractAddress
 	}
 
 	oracleContractInstance, err := bindings.NewL2OutputOracle(common.HexToAddress(oracleContractAddress), client)
