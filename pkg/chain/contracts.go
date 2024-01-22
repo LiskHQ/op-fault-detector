@@ -17,21 +17,20 @@ type OracleAccessor struct {
 	contractInstance *bindings.L2OutputOracle
 }
 
+// ConfigOptions are the options required to interact with the oracle contract.
 type ConfigOptions struct {
 	L1RPCEndpoint                 string
 	ChainID                       uint64
 	L2OutputOracleContractAddress string
 }
 
-// getL1OracleContractAddressByChainID returns L1 oracle contract address by chainID.
 func getL1OracleContractAddressByChainID(chainID uint64) (string, error) {
-	ContractAddresses, err := GetContractAddressesByChainID(chainID)
+	cAddr, err := GetContractAddressesByChainID(chainID)
 	if err != nil {
 		return "", err
 	}
 
-	address := ContractAddresses.l2OutputOracle
-	return address, nil
+	return cAddr.l2OutputOracle, nil
 }
 
 // NewOracleContract returns [OracleAccessor] with contract instance.
