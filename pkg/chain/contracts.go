@@ -24,31 +24,31 @@ type ConfigOptions struct {
 	L2OutputOracleContractAddress string
 }
 
-func getL1OracleContractAddressByChainID(chainID uint64) (string, error) {
-	cAddr, err := GetContractAddressesByChainID(chainID)
-	if err != nil {
-		return "", err
+func getL1OracleContractAddressByChainID(chainID uint64) (string, bool) {
+	cAddr, areAddressesAvailable := GetContractAddressesByChainID(chainID)
+	if !areAddressesAvailable {
+		return "", false
 	}
 
-	return cAddr.l2OutputOracle, nil
+	return cAddr.l2OutputOracle, true
 }
 
 // NewOracleContract returns [OracleAccessor] with contract instance.
-func NewOracleContract(ctx context.Context, opts ConfigOptions) (*OracleAccessor, error) {
+func NewOracleContract(ctx context.Context, opts *ConfigOptions) (*OracleAccessor, error) {
 	client, err := ethclient.DialContext(ctx, opts.L1RPCEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	oracleContractAddress, err := getL1OracleContractAddressByChainID(opts.ChainID)
+	oracleContractAddress, isAddressExists := getL1OracleContractAddressByChainID(opts.ChainID)
 
 	// Verify if oracle contract address is available in the chain constants
 	// If not available, use l2OutputContractAddress from the config options
-	if err != nil {
+	if !isAddressExists {
 		if len(opts.L2OutputOracleContractAddress) > 0 {
 			oracleContractAddress = opts.L2OutputOracleContractAddress
 		} else {
-			return nil, fmt.Errorf("L2 output oracle contract address is not available")
+			return nil, fmt.Errorf("L2OutputOracleContractAddress is not available")
 		}
 	}
 

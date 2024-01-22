@@ -1,7 +1,5 @@
 package chain
 
-import "fmt"
-
 // L2ChainIDs manages L2 network chainIDs.
 type L2ChainIDs struct {
 	optimism                    uint64
@@ -48,9 +46,10 @@ type Contracts struct {
 	networkType          NetworkType
 }
 
-// GetContractAddressesByChainID returns contract addresses by chainID.
-func GetContractAddressesByChainID(chainID uint64) (Contracts, error) {
-	contractAddresses := map[uint64]Contracts{
+var contractAddresses map[uint64]Contracts
+
+func init() {
+	contractAddresses = map[uint64]Contracts{
 		l2NetworkChainIDs.optimism: {
 			stateCommitmentChain: "0xBe5dAb4A2e9cd0F27300dB4aB94BeE3A233AEB19",
 			optimismPortal:       "0xbEb5Fc579115071764c7423A4f12eDde41f106Ed",
@@ -123,12 +122,15 @@ func GetContractAddressesByChainID(chainID uint64) (Contracts, error) {
 			networkType:    L1,
 		},
 	}
+}
 
+// GetContractAddressesByChainID returns contract addresses by network chainID.
+func GetContractAddressesByChainID(chainID uint64) (Contracts, bool) {
 	filteredContracts := contractAddresses[chainID]
 
 	if len(filteredContracts.l2OutputOracle) == 0 {
-		return filteredContracts, fmt.Errorf("contract information is unavailable for the chain %v", chainID)
+		return filteredContracts, false
 	}
 
-	return filteredContracts, nil
+	return filteredContracts, true
 }
