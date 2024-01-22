@@ -1,4 +1,4 @@
-// Package chain implements everything related to interaction with smart contracts, rpcprovider, etc.
+// Package chain implements everything related to interaction with smart contracts, rpc provider, etc.
 package chain
 
 import (

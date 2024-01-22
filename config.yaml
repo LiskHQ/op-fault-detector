@@ -1,0 +1,15 @@
+# General system configurations
+system:
+  log_level: "info"
+
+# API related configurations
+api:
+  server:
+    host: "127.0.0.1"
+    port: 8080
+  base_path: "/api"
+  register_versions:
+    - v1
+
+# Faultdetector configurations
+fault_detector:
