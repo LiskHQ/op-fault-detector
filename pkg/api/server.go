@@ -15,8 +15,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// HTTPServerWrapper embeds the http.Server along with the various other properties.
-type HTTPServerWrapper struct {
+// HTTPServer embeds the http.Server along with the various other properties.
+type HTTPServer struct {
 	server    *http.Server
 	ctx       context.Context
 	logger    log.Logger
@@ -25,7 +25,7 @@ type HTTPServerWrapper struct {
 }
 
 // Start starts the HTTP API server.
-func (w *HTTPServerWrapper) Start() {
+func (w *HTTPServer) Start() {
 	defer w.wg.Done()
 
 	w.logger.Infof("Starting the HTTP server on %s.", w.server.Addr)
@@ -36,7 +36,7 @@ func (w *HTTPServerWrapper) Start() {
 }
 
 // Stop gracefully shuts down the HTTP API server.
-func (w *HTTPServerWrapper) Stop() error {
+func (w *HTTPServer) Stop() error {
 	err := w.server.Shutdown(w.ctx)
 	if err == nil {
 		w.logger.Infof("Successfully stopped the HTTP server.")
@@ -56,7 +56,7 @@ func getGinModeFromSysLogLevel(sysLogLevel string) string {
 }
 
 // NewHTTPServer creates a router instance and sets up the necessary routes/handlers.
-func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, config *config.Config, errorChan chan error) *HTTPServerWrapper {
+func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, config *config.Config, errorChan chan error) *HTTPServer {
 	gin.SetMode(getGinModeFromSysLogLevel(config.System.LogLevel))
 
 	router := gin.Default()
@@ -78,11 +78,11 @@ func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, c
 	port := config.Api.Server.Port
 	addr := fmt.Sprintf("%s:%d", host, port)
 
-	server := &HTTPServerWrapper{
+	server := &HTTPServer{
 		&http.Server{
 			Addr:              addr,
 			Handler:           router,
-			ReadHeaderTimeout: 10 * time.Second, // TODO: Check appropriate value
+			ReadHeaderTimeout: 10 * time.Second,
 		},
 		ctx,
 		logger,

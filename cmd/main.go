@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var apiServer *api.HTTPServerWrapper
+var apiServer *api.HTTPServer
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
