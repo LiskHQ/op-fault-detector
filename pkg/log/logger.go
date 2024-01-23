@@ -6,6 +6,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const (
+	LevelTrace = "trace"
+	LevelDebug = "debug"
+	LevelInfo  = "info"
+	LevelWarn  = "warn"
+	LevelError = "error"
+	LevelFatal = "fatal"
+)
+
 // DefaultLogger is a default setup logger.
 var DefaultLogger Logger
 
@@ -14,9 +23,11 @@ type Logger interface {
 	Debug(msg string, others ...interface{})
 	Info(msg string, others ...interface{})
 	Error(msg string, others ...interface{})
+	Fatal(msg string, others ...interface{})
 	Debugf(msg string, others ...interface{})
 	Infof(msg string, others ...interface{})
 	Errorf(msg string, others ...interface{})
+	Fatalf(msg string, others ...interface{})
 	Warning(msg string, others ...interface{})
 	Warningf(msg string, others ...interface{})
 	With(kv ...interface{}) Logger
@@ -121,6 +132,10 @@ func (l *logger) Errorf(msg string, others ...interface{}) {
 	l.zlog.Errorf(msg, others...)
 }
 
+func (l *logger) Fatalf(msg string, others ...interface{}) {
+	l.zlog.Fatalf(msg, others)
+}
+
 func (l *logger) Debug(msg string, others ...interface{}) {
 	l.zlog.Debug(msg, others)
 }
@@ -135,6 +150,10 @@ func (l *logger) Error(msg string, others ...interface{}) {
 
 func (l *logger) Warning(msg string, others ...interface{}) {
 	l.zlog.Warn(msg, others)
+}
+
+func (l *logger) Fatal(msg string, others ...interface{}) {
+	l.zlog.Fatal(msg, others)
 }
 
 func (l *logger) With(kv ...interface{}) Logger {
