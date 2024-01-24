@@ -5,12 +5,21 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/LiskHQ/op-fault-detector/pkg/encoding"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 )
+
+// L2Output is the output of GetL2Output.
+type L2Output struct {
+	OutputRoot    string
+	L1Timestamp   uint64
+	L2BlockNumber uint64
+	L2OutputIndex uint64
+}
 
 // OracleAccessor binds oracle contract to an instance for querying data.
 type OracleAccessor struct {
@@ -68,6 +77,16 @@ func (oc *OracleAccessor) GetNextOutputIndex() (*big.Int, error) {
 }
 
 // GetL2Output returns L2 output at given index.
-func (oc *OracleAccessor) GetL2Output(index *big.Int) (bindings.TypesOutputProposal, error) {
-	return oc.contractInstance.GetL2Output(&bind.CallOpts{}, index)
+func (oc *OracleAccessor) GetL2Output(index *big.Int) (L2Output, error) {
+	l2Output, err := oc.contractInstance.GetL2Output(&bind.CallOpts{}, index)
+	if err != nil {
+		return L2Output{}, err
+	}
+
+	return L2Output{
+		OutputRoot:    "0x" + common.Bytes2Hex(l2Output.OutputRoot[:]),
+		L1Timestamp:   encoding.ConvertBigIntToUint64(l2Output.Timestamp),
+		L2BlockNumber: encoding.ConvertBigIntToUint64(l2Output.L2BlockNumber),
+		L2OutputIndex: encoding.ConvertBigIntToUint64(index),
+	}, nil
 }
