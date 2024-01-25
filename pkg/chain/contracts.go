@@ -8,6 +8,7 @@ import (
 	"github.com/LiskHQ/op-fault-detector/pkg/encoding"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
@@ -84,9 +85,9 @@ func (oc *OracleAccessor) GetL2Output(index *big.Int) (L2Output, error) {
 	}
 
 	return L2Output{
-		OutputRoot:    "0x" + common.Bytes2Hex(l2Output.OutputRoot[:]),
-		L1Timestamp:   encoding.ConvertBigIntToUint64(l2Output.Timestamp),
-		L2BlockNumber: encoding.ConvertBigIntToUint64(l2Output.L2BlockNumber),
-		L2OutputIndex: encoding.ConvertBigIntToUint64(index),
+		OutputRoot:    hexutil.Encode(l2Output.OutputRoot[:]),
+		L1Timestamp:   encoding.MustConvertBigIntToUint64(l2Output.Timestamp),
+		L2BlockNumber: encoding.MustConvertBigIntToUint64(l2Output.L2BlockNumber),
+		L2OutputIndex: encoding.MustConvertBigIntToUint64(index),
 	}, nil
 }
