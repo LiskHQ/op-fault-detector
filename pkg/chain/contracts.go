@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-
-	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 )
 
 // OracleAccessor binds oracle contract to an instance for querying data.
@@ -70,4 +69,9 @@ func (oc *OracleAccessor) GetNextOutputIndex() (*big.Int, error) {
 // GetL2Output returns L2 output at given index.
 func (oc *OracleAccessor) GetL2Output(index *big.Int) (bindings.TypesOutputProposal, error) {
 	return oc.contractInstance.GetL2Output(&bind.CallOpts{}, index)
+}
+
+// FinalizationPeriodSeconds returns output finalization time in seconds.
+func (oc *OracleAccessor) FinalizationPeriodSeconds() (*big.Int, error) {
+	return oc.contractInstance.FINALIZATIONPERIODSECONDS(&bind.CallOpts{})
 }
