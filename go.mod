@@ -4,7 +4,7 @@ go 1.21.5
 
 require (
 	github.com/ethereum-optimism/optimism v1.4.2
-	github.com/ethereum/go-ethereum v1.13.11
+	github.com/ethereum/go-ethereum v1.13.10
 	github.com/gin-gonic/gin v1.9.1
 	github.com/magiconair/properties v1.8.7
 	github.com/spf13/viper v1.18.2
