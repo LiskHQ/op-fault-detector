@@ -12,12 +12,20 @@ import (
 	"go.uber.org/multierr"
 )
 
+var (
+	providerEndpointRegex = regexp.MustCompile(`^(http|https|ws|wss)://`)
+	addressRegex          = regexp.MustCompile(`(\b0x[a-f0-9]{40}\b)`)
+	hostRegex             = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`)
+	basePathRegex         = regexp.MustCompile(`^/?api$`)
+	registerVersionRegex  = regexp.MustCompile(`^v[1-9]\d*$`)
+)
+
 // Config struct is used to store the contents of the parsed config file.
 // The properties (sub-properties) should map on-to-one with the config file.
 type Config struct {
-	System        *System        `mapstructure:"system"`
-	Api           *Api           `mapstructure:"api"`
-	FaultDetector *FaultDetector `mapstructure:"fault_detector"`
+	System              *System              `mapstructure:"system"`
+	Api                 *Api                 `mapstructure:"api"`
+	FaultDetectorConfig *FaultDetectorConfig `mapstructure:"fault_detector"`
 }
 
 // System struct is used to store the contents of the 'system' property from the parsed config file.
@@ -39,7 +47,11 @@ type Server struct {
 }
 
 // FaultDetector struct is used to store the contents of the 'fault_detector' property from the parsed config file.
-type FaultDetector struct {
+type FaultDetectorConfig struct {
+	L1RPCEndpoint                 string `mapstructure:"l1_rpc_endpoint"`
+	L2RPCEndpoint                 string `mapstructure:"l2_rpc_endpoint"`
+	Startbatchindex               int64  `mapstructure:"start_batch_index"`
+	L2OutputOracleContractAddress string `mapstructure:"l2_output_oracle_contract_address"`
 }
 
 func formatError(validationErrors error) error {
@@ -60,7 +72,7 @@ func (c *Config) Validate() error {
 
 	sysConfigError := c.System.Validate()
 	apiConfigError := c.Api.Validate()
-	fdConfigError := c.FaultDetector.Validate()
+	fdConfigError := c.FaultDetectorConfig.Validate()
 
 	validationErrors = multierr.Combine(sysConfigError, apiConfigError, fdConfigError)
 
@@ -86,19 +98,16 @@ func (c *Api) Validate() error {
 	validationErrors = multierr.Append(validationErrors, c.Server.Validate())
 
 	basePath := c.BasePath
-	basePathRegex := `^/?api$`
-	basePathMatched, _ := regexp.MatchString(basePathRegex, basePath)
+	basePathMatched := basePathRegex.MatchString(basePath)
 	if !basePathMatched {
-		validationErrors = multierr.Append(validationErrors, fmt.Errorf("api.base_path expected to match regex: `%s`, received: '%s'", basePathRegex, basePath))
+		validationErrors = multierr.Append(validationErrors, fmt.Errorf("api.base_path expected to match regex: `%s`, received: '%s'", basePathRegex.String(), basePath))
 	}
 
 	registerVersions := c.RegisterVersions
-	registerVersionRegex := `^v[1-9]\d*$`
-	registerVersionRegexCompiled, _ := regexp.Compile(registerVersionRegex)
 	for _, version := range registerVersions {
-		registerVersionMatched := registerVersionRegexCompiled.MatchString(version)
+		registerVersionMatched := registerVersionRegex.MatchString(version)
 		if !registerVersionMatched {
-			validationErrors = multierr.Append(validationErrors, fmt.Errorf("api.register_versions entry expected to match regex: `%s`, received: '%s'", registerVersionRegex, version))
+			validationErrors = multierr.Append(validationErrors, fmt.Errorf("api.register_versions entry expected to match regex: `%s`, received: '%s'", registerVersionRegex.String(), version))
 		}
 	}
 
@@ -110,10 +119,9 @@ func (c *Server) Validate() error {
 	var validationErrors error
 
 	host := c.Host
-	hostRegex := `^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`
-	hostMatched, _ := regexp.MatchString(hostRegex, host)
+	hostMatched := hostRegex.MatchString(host)
 	if !hostMatched {
-		validationErrors = multierr.Append(validationErrors, fmt.Errorf("api.server.host expected to match regex: `%s`, received: '%s'", hostRegex, host))
+		validationErrors = multierr.Append(validationErrors, fmt.Errorf("api.server.host expected to match regex: `%s`, received: '%s'", hostRegex.String(), host))
 	}
 
 	port := c.Port
@@ -127,6 +135,22 @@ func (c *Server) Validate() error {
 }
 
 // Validate runs validations against an instance of the FaultDetector struct and returns an error when applicable.
-func (c *FaultDetector) Validate() error {
-	return nil
+func (c *FaultDetectorConfig) Validate() error {
+	var validationErrors error
+
+	l1ProviderMatched := providerEndpointRegex.MatchString(c.L1RPCEndpoint)
+	if !l1ProviderMatched {
+		validationErrors = multierr.Append(validationErrors, fmt.Errorf("faultdetector.l1_rpc_endpoint expected to match regex: `%s`, received: '%s'", providerEndpointRegex.String(), c.L1RPCEndpoint))
+	}
+	l2ProviderMatched := providerEndpointRegex.MatchString(c.L2RPCEndpoint)
+	if !l2ProviderMatched {
+		validationErrors = multierr.Append(validationErrors, fmt.Errorf("faultdetector.l2_rpc_endpoint expected to match regex: `%s`, received: '%s'", providerEndpointRegex.String(), c.L2RPCEndpoint))
+	}
+
+	addressMatched := addressRegex.MatchString(c.L2OutputOracleContractAddress)
+	if !addressMatched {
+		validationErrors = multierr.Append(validationErrors, fmt.Errorf("faultdetector.l2_output_oracle_contract_address expected to match regex: `%s`, received: '%s'", addressRegex.String(), c.L2OutputOracleContractAddress))
+	}
+
+	return validationErrors
 }
