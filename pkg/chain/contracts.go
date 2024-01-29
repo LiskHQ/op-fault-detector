@@ -6,12 +6,11 @@ import (
 	"math/big"
 
 	"github.com/LiskHQ/op-fault-detector/pkg/encoding"
+	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
-
-	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
 )
 
 // L2Output is the output of GetL2Output.
@@ -90,4 +89,9 @@ func (oc *OracleAccessor) GetL2Output(index *big.Int) (L2Output, error) {
 		L2BlockNumber: encoding.MustConvertBigIntToUint64(l2Output.L2BlockNumber),
 		L2OutputIndex: encoding.MustConvertBigIntToUint64(index),
 	}, nil
+}
+
+// FinalizationPeriodSeconds returns output finalization time in seconds.
+func (oc *OracleAccessor) FinalizationPeriodSeconds() (*big.Int, error) {
+	return oc.contractInstance.FINALIZATIONPERIODSECONDS(&bind.CallOpts{})
 }
