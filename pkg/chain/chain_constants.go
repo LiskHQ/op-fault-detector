@@ -31,6 +31,34 @@ var l2NetworkChainIDs = L2ChainIDs{
 	liskSepolia:                 4202,
 }
 
+type DefaultL2ContractAddress struct {
+	BedrockMessagePasser    string
+	L2CrossDomainMessenger  string
+	L2ToL1MessagePasser     string
+	L2StandardBridge        string
+	OVM_L1BlockNumber       string
+	OVM_L2ToL1MessagePasser string
+	OVM_DeployerWhitelist   string
+	OVM_ETH                 string
+	OVM_GasPriceOracle      string
+	OVM_SequencerFeeVault   string
+	WETH                    string
+}
+
+var DefaultL2ContractAddresses = DefaultL2ContractAddress{
+	BedrockMessagePasser:    "0x4200000000000000000000000000000000000016",
+	L2CrossDomainMessenger:  "0x4200000000000000000000000000000000000007",
+	L2StandardBridge:        "0x4200000000000000000000000000000000000010",
+	L2ToL1MessagePasser:     "0x4200000000000000000000000000000000000016",
+	OVM_DeployerWhitelist:   "0x4200000000000000000000000000000000000002",
+	OVM_ETH:                 "0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000",
+	OVM_GasPriceOracle:      "0x420000000000000000000000000000000000000F",
+	OVM_L1BlockNumber:       "0x4200000000000000000000000000000000000013",
+	OVM_L2ToL1MessagePasser: "0x4200000000000000000000000000000000000016",
+	OVM_SequencerFeeVault:   "0x4200000000000000000000000000000000000011",
+	WETH:                    "0x4200000000000000000000000000000000000006",
+}
+
 type NetworkType = string
 
 const (
