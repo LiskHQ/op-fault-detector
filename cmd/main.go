@@ -32,10 +32,7 @@ type App struct {
 }
 
 // NewApp returns [App] with all the initialized services and variables.
-func NewApp(logger log.Logger) (*App, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 	configFilepath := flag.String("config", "./config.yaml", "Path to the config file")
 	flag.Parse()
 	config, err := getAppConfig(logger, *configFilepath)
@@ -55,6 +52,7 @@ func NewApp(logger log.Logger) (*App, error) {
 		&wg,
 		config.FaultDetectorConfig,
 	)
+
 	if err != nil {
 		logger.Errorf("Failed to create fault detector service.")
 		return nil, err
@@ -117,13 +115,16 @@ func (app *App) stop() {
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	logger, err := log.NewDefaultProductionLogger()
 	if err != nil {
 		logger.Errorf("Failed to create logger, %w", err)
 		return
 	}
 
-	app, err := NewApp(logger)
+	app, err := NewApp(ctx, logger)
 	if err != nil {
 		logger.Errorf("Failed to create app, %w", err)
 		return
