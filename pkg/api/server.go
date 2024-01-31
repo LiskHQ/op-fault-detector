@@ -13,15 +13,19 @@ import (
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // HTTPServer embeds the http.Server along with the various other properties.
 type HTTPServer struct {
-	server    *http.Server
-	ctx       context.Context
-	logger    log.Logger
-	wg        *sync.WaitGroup
-	errorChan chan error
+	server         *http.Server
+	ctx            context.Context
+	logger         log.Logger
+	wg             *sync.WaitGroup
+	errorChan      chan error
+	metricRegistry *prometheus.Registry
 }
 
 // Start starts the HTTP API server.
@@ -56,7 +60,7 @@ func getGinModeFromSysLogLevel(sysLogLevel string) string {
 }
 
 // NewHTTPServer creates a router instance and sets up the necessary routes/handlers.
-func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, config *config.Config, errorChan chan error) *HTTPServer {
+func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, config *config.Config, errorChan chan error, metricRegistry *prometheus.Registry) *HTTPServer {
 	gin.SetMode(getGinModeFromSysLogLevel(config.System.LogLevel))
 
 	router := gin.Default()
@@ -66,6 +70,13 @@ func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, c
 
 	// Register handlers for routes without any base path
 	logger.Debug("Registering handlers for non-versioned endpoints.")
+	// Adding Go process related metric
+	metricRegistry.MustRegister(
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(),
+	)
+	router.GET("/metrics", gin.WrapH(promhttp.HandlerFor(metricRegistry, promhttp.HandlerOpts{Registry: metricRegistry, ProcessStartTime: time.Now()})))
+
 	routes.RegisterHandlers(logger, router)
 
 	// Register handlers for routes following the base path
@@ -88,6 +99,7 @@ func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, c
 		logger,
 		wg,
 		errorChan,
+		metricRegistry,
 	}
 
 	return server

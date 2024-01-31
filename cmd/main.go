@@ -17,6 +17,7 @@ import (
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 )
 
@@ -35,6 +36,8 @@ type App struct {
 func NewApp(logger log.Logger) (*App, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	reg := prometheus.NewRegistry()
+	metrics := faultdetector.NewFaultDetectorMetrics(reg)
 
 	configFilepath := flag.String("config", "./config.yaml", "Path to the config file")
 	flag.Parse()
@@ -53,6 +56,7 @@ func NewApp(logger log.Logger) (*App, error) {
 		logger,
 		errorChan,
 		&wg,
+		metrics,
 		config.FaultDetectorConfig,
 	)
 	if err != nil {
@@ -61,7 +65,7 @@ func NewApp(logger log.Logger) (*App, error) {
 	}
 
 	// Start API Server
-	apiServer := api.NewHTTPServer(ctx, logger, &wg, config, errorChan)
+	apiServer := api.NewHTTPServer(ctx, logger, &wg, config, errorChan, reg)
 
 	return &App{
 		ctx:           ctx,

@@ -21,6 +21,7 @@ type FaultDetector struct {
 	logger                 log.Logger
 	errorChan              chan error
 	wg                     *sync.WaitGroup
+	metrics                *FaultDetectorMetrics
 	l1RpcApi               *chain.ChainAPIClient
 	l2RpcApi               *chain.ChainAPIClient
 	oracleContractAccessor *chain.OracleAccessor
@@ -32,7 +33,7 @@ type FaultDetector struct {
 }
 
 // NewFaultDetector will return [FaultDetector] with the initialized providers and configuration.
-func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, faultDetectorConfig *config.FaultDetectorConfig) (*FaultDetector, error) {
+func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, metrics *FaultDetectorMetrics, faultDetectorConfig *config.FaultDetectorConfig) (*FaultDetector, error) {
 	// Initialize API Providers
 	l1RpcApi, err := chain.GetAPIClient(ctx, faultDetectorConfig.L1RPCEndpoint, logger)
 	if err != nil {
@@ -65,7 +66,18 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 		return nil, err
 	}
 
+	finalizedPeriodSeconds, err := oracleContractAccessor.FinalizationPeriodSeconds()
+	if err != nil {
+		logger.Errorf("Failed to query `FinalizationPeriodSeconds` from Oracle contract accessor, error: %w", err)
+		return nil, err
+	}
+
 	// TODO: Calculate from findFirstUnfinalizedOutputIndex(context, OracleContractAccessor, L1Provider, faultProofWindow, logger)
+
+	// Set after findFirstUnfinalizedOutputIndex
+	metrics.highestOutputIndex.Set(1)
+	// Initially set state mismatch to 0
+	metrics.stateMismatch.Set(0)
 
 	faultDetector := &FaultDetector{
 		ctx:                    ctx,
@@ -75,9 +87,10 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 		l1RpcApi:               l1RpcApi,
 		l2RpcApi:               l2RpcApi,
 		oracleContractAccessor: oracleContractAccessor,
-		faultProofWindow:       uint64(2), // TODO
+		faultProofWindow:       finalizedPeriodSeconds.Uint64(),
 		currentOutputIndex:     uint64(2), // TODO
 		diverged:               false,
+		metrics:                metrics,
 	}
 
 	return faultDetector, nil
@@ -109,6 +122,9 @@ func (fd *FaultDetector) Stop() {
 
 // TODO: Implement checkFault to check for faults
 func (fd *FaultDetector) checkFault() {
+	// TODO: Increment or set in different scenarios
+	fd.metrics.highestOutputIndex.Inc()
+	fd.metrics.stateMismatch.Dec()
 	// TODO: The below log need to be removed/updated after full implementation
 	fd.logger.Infof("Connected to L1 and L2 chains, the currentOutputIndex is %d", fd.currentOutputIndex)
 }
