@@ -50,7 +50,7 @@ type Server struct {
 type FaultDetectorConfig struct {
 	L1RPCEndpoint                 string `mapstructure:"l1_rpc_endpoint"`
 	L2RPCEndpoint                 string `mapstructure:"l2_rpc_endpoint"`
-	Startbatchindex               int64  `mapstructure:"start_batch_index"`
+	Startbatchindex               uint64 `mapstructure:"start_batch_index"`
 	L2OutputOracleContractAddress string `mapstructure:"l2_output_oracle_contract_address"`
 }
 

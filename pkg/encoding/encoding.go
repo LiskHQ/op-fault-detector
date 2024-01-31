@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -24,7 +25,7 @@ func MustConvertUint64ToBigInt(value uint64) *big.Int {
 }
 
 // ComputeL2OutputRoot computes L2 output root.
-func ComputeL2OutputRoot(stateRoot common.Hash, storageHash common.Hash, outputBlockHash common.Hash) common.Hash {
+func ComputeL2OutputRoot(stateRoot common.Hash, storageHash common.Hash, outputBlockHash common.Hash) string {
 	l2Output := eth.OutputV0{
 		StateRoot:                eth.Bytes32(stateRoot),
 		MessagePasserStorageRoot: eth.Bytes32(storageHash),
@@ -32,5 +33,5 @@ func ComputeL2OutputRoot(stateRoot common.Hash, storageHash common.Hash, outputB
 	}
 
 	outputRoot := crypto.Keccak256Hash(l2Output.Marshal())
-	return outputRoot
+	return hexutil.Encode(outputRoot[:])
 }

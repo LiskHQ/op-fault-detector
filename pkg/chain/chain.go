@@ -60,6 +60,11 @@ func (c *ChainAPIClient) GetBlockByNumber(ctx context.Context, blockNumber *big.
 	return c.eth.BlockByNumber(ctx, blockNumber)
 }
 
+// GetBlockHeaderByNumber returns block header for a given block number from a connected node.
+func (c *ChainAPIClient) GetBlockHeaderByNumber(ctx context.Context, blockNumber *big.Int) (*types.Header, error) {
+	return c.eth.HeaderByNumber(ctx, blockNumber)
+}
+
 // GetProof returns the account and storage values, including the Merkle proof, of the specified account/address.
 func (c *ChainAPIClient) GetProof(ctx context.Context, blockNumber *big.Int, address common.Address) (*ProofResponse, error) {
 	var result ProofResponse
