@@ -2,7 +2,7 @@ package faultdetector
 
 import "github.com/prometheus/client_golang/prometheus"
 
-// FaultDetectorMetrics encapsulates faul detector related metrics.
+// FaultDetectorMetrics encapsulates fault detector related metrics.
 type FaultDetectorMetrics struct {
 	highestOutputIndex   prometheus.Gauge
 	stateMismatch        prometheus.Gauge
