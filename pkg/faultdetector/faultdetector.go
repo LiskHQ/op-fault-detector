@@ -206,7 +206,8 @@ func (fd *FaultDetector) checkFault() {
 
 	if calculatedOutputRoot != expectedOutputRoot {
 		fd.diverged = true
-		fd.logger.Errorf("State root does not match expectedStateRoot: %s, calculatedStateRoot: %s.", expectedOutputRoot, calculatedOutputRoot)
+		finalizationTime := time.Unix(int64(outputBlockHeader.Time+fd.faultProofWindow), 0)
+		fd.logger.Errorf("State root does not match expectedStateRoot: %s, calculatedStateRoot: %s, finalizationTime: %s.", expectedOutputRoot, calculatedOutputRoot, finalizationTime)
 		return
 	}
 
