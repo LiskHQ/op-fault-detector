@@ -191,9 +191,9 @@ func (fd *FaultDetector) checkFault() {
 		return
 	}
 
-	messagePasserProofResponse, err := fd.l2RpcApi.GetProof(fd.ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber), common.HexToAddress(chain.DefaultL2ContractAddresses.BedrockMessagePasser))
+	messagePasserProofResponse, err := fd.l2RpcApi.GetProof(fd.ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber), common.HexToAddress(chain.L2BedrockMessagePasserAddress))
 	if err != nil {
-		fd.logger.Errorf("Failed to fetch message passer proof for the block %d and address %s.", l2OutputBlockNumber, chain.DefaultL2ContractAddresses.BedrockMessagePasser)
+		fd.logger.Errorf("Failed to fetch message passer proof for the block with height %d and address %s.", l2OutputBlockNumber, chain.L2BedrockMessagePasserAddress)
 		time.Sleep(waitTimeInFailure * time.Second)
 		return
 	}
