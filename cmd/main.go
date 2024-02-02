@@ -12,12 +12,15 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/LiskHQ/op-fault-detector/pkg/api"
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 )
 
@@ -37,7 +40,11 @@ func NewApp(logger log.Logger) (*App, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	reg := prometheus.NewRegistry()
-	metrics := faultdetector.NewFaultDetectorMetrics(reg)
+	// Adding Go process related metric
+	reg.MustRegister(
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(),
+	)
 
 	configFilepath := flag.String("config", "./config.yaml", "Path to the config file")
 	flag.Parse()
@@ -56,8 +63,8 @@ func NewApp(logger log.Logger) (*App, error) {
 		logger,
 		errorChan,
 		&wg,
-		metrics,
 		config.FaultDetectorConfig,
+		reg,
 	)
 	if err != nil {
 		logger.Errorf("Failed to create fault detector service.")
@@ -65,7 +72,10 @@ func NewApp(logger log.Logger) (*App, error) {
 	}
 
 	// Start API Server
-	apiServer := api.NewHTTPServer(ctx, logger, &wg, config, errorChan, reg)
+	apiServer := api.NewHTTPServer(ctx, logger, &wg, config, errorChan)
+
+	// Register metrics endpoint on the apiServer
+	apiServer.RegisterHandler("GET", "/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg, ProcessStartTime: time.Now()}))
 
 	return &App{
 		ctx:           ctx,
