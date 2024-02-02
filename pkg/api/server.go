@@ -18,6 +18,7 @@ import (
 // HTTPServer embeds the http.Server along with the various other properties.
 type HTTPServer struct {
 	server    *http.Server
+	router    *gin.Engine
 	ctx       context.Context
 	logger    log.Logger
 	wg        *sync.WaitGroup
@@ -45,6 +46,10 @@ func (w *HTTPServer) Stop() error {
 	return err
 }
 
+func (w *HTTPServer) RegisterHandler(httpMethod string, relativePath string, h http.Handler) {
+	w.router.Handle(httpMethod, relativePath, gin.WrapH(h))
+}
+
 func getGinModeFromSysLogLevel(sysLogLevel string) string {
 	ginMode := gin.DebugMode // Default mode
 
@@ -66,6 +71,7 @@ func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, c
 
 	// Register handlers for routes without any base path
 	logger.Debug("Registering handlers for non-versioned endpoints.")
+
 	routes.RegisterHandlers(logger, router)
 
 	// Register handlers for routes following the base path
@@ -84,6 +90,7 @@ func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, c
 			Handler:           router,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
+		router,
 		ctx,
 		logger,
 		wg,
