@@ -11,6 +11,7 @@ import (
 	"github.com/LiskHQ/op-fault-detector/pkg/encoding"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -24,6 +25,7 @@ type FaultDetector struct {
 	logger                 log.Logger
 	errorChan              chan error
 	wg                     *sync.WaitGroup
+	metrics                *faultDetectorMetrics
 	l1RpcApi               *chain.ChainAPIClient
 	l2RpcApi               *chain.ChainAPIClient
 	oracleContractAccessor *chain.OracleAccessor
@@ -34,8 +36,38 @@ type FaultDetector struct {
 	quitTickerChan         chan struct{}
 }
 
+type faultDetectorMetrics struct {
+	highestOutputIndex   prometheus.Gauge
+	stateMismatch        prometheus.Gauge
+	apiConnectionFailure prometheus.Gauge
+}
+
+// NewFaultDetectorMetrics returns [FaultDetectorMetrics] with initialized metrics and registering to prometheus registry.
+func newFaultDetectorMetrics(reg prometheus.Registerer) *faultDetectorMetrics {
+	m := &faultDetectorMetrics{
+		highestOutputIndex: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "fault_detector_highest_output_index",
+				Help: "The highest current output index",
+			}),
+		stateMismatch: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "fault_detector_is_state_mismatch",
+			Help: "0 when state is matched, 1 when mismatch",
+		}),
+		apiConnectionFailure: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "fault_detector_api_connection_failure",
+			Help: "Number of times API call failed",
+		}),
+	}
+	reg.MustRegister(m.highestOutputIndex)
+	reg.MustRegister(m.stateMismatch)
+	reg.MustRegister(m.apiConnectionFailure)
+
+	return m
+}
+
 // NewFaultDetector will return [FaultDetector] with the initialized providers and configuration.
-func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, faultDetectorConfig *config.FaultDetectorConfig) (*FaultDetector, error) {
+func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, faultDetectorConfig *config.FaultDetectorConfig, metricRegistry *prometheus.Registry) (*FaultDetector, error) {
 	// Initialize API Providers
 	l1RpcApi, err := chain.GetAPIClient(ctx, faultDetectorConfig.L1RPCEndpoint, logger)
 	if err != nil {
@@ -69,12 +101,13 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 		return nil, err
 	}
 
-	faultProofWindow, err := oracleContractAccessor.FinalizationPeriodSeconds()
+	finalizedPeriodSeconds, err := oracleContractAccessor.FinalizationPeriodSeconds()
 	if err != nil {
-		logger.Errorf("Failed to query FinalizationPeriodSecond", err)
+		logger.Errorf("Failed to query `FinalizationPeriodSeconds` from Oracle contract accessor, error: %w", err)
 		return nil, err
 	}
-	logger.Infof("Fault proof window is set to %d.", faultProofWindow)
+
+	logger.Infof("Fault proof window is set to %d.", finalizedPeriodSeconds)
 
 	var currentOutputIndex uint64
 	if int64(faultDetectorConfig.Startbatchindex) == -1 {
@@ -82,7 +115,7 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 		// firstUnfinalized, _ := FindFirstUnfinalizedOutputIndex(
 		// 	ctx,
 		// 	logger,
-		// 	encoding.MustConvertBigIntToUint64(faultProofWindow),
+		// 	encoding.MustConvertBigIntToUint64(finalizedPeriodSeconds),
 		// 	oracleContractAccessor,
 		// 	l2RpcApi,
 		// )
@@ -102,6 +135,10 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 	}
 	logger.Infof("Starting unfinalized batch index is set to %d.", currentOutputIndex)
 
+	metrics := newFaultDetectorMetrics(metricRegistry)
+	// Initially set state mismatch to 0
+	metrics.stateMismatch.Set(0)
+
 	faultDetector := &FaultDetector{
 		ctx:                    ctx,
 		logger:                 logger,
@@ -110,9 +147,10 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 		l1RpcApi:               l1RpcApi,
 		l2RpcApi:               l2RpcApi,
 		oracleContractAccessor: oracleContractAccessor,
-		faultProofWindow:       encoding.MustConvertBigIntToUint64(faultProofWindow),
+		faultProofWindow:       finalizedPeriodSeconds.Uint64(),
 		currentOutputIndex:     currentOutputIndex,
 		diverged:               false,
+		metrics:                metrics,
 	}
 
 	return faultDetector, nil
@@ -210,6 +248,10 @@ func (fd *FaultDetector) checkFault() {
 		fd.logger.Errorf("State root does not match expectedStateRoot: %s, calculatedStateRoot: %s, finalizationTime: %s.", expectedOutputRoot, calculatedOutputRoot, finalizationTime)
 		return
 	}
+
+	// TODO: Increment or set in different scenarios
+	fd.metrics.highestOutputIndex.Inc()
+	fd.metrics.stateMismatch.Set(0)
 
 	// Time taken to execute each batch in milliseconds.
 	elapsedTime := time.Since(startTime).Milliseconds()
