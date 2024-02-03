@@ -48,7 +48,7 @@ func newFaultDetectorMetrics(reg prometheus.Registerer) *faultDetectorMetrics {
 		highestOutputIndex: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Name: "fault_detector_highest_output_index",
-				Help: "The highest current output index",
+				Help: "The highest current output index that is being checked for faults",
 			}),
 		stateMismatch: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "fault_detector_is_state_mismatch",
@@ -95,7 +95,6 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 	}
 
 	oracleContractAccessor, err := chain.NewOracleAccessor(ctx, chainConfig)
-
 	if err != nil {
 		logger.Errorf("Failed to create Oracle contract accessor with chainID: %d, L1 endpoint: %s and L2OutputOracleContractAddress: %s, error: %w", l2ChainID.Int64(), faultDetectorConfig.L1RPCEndpoint, faultDetectorConfig.L2OutputOracleContractAddress, err)
 		return nil, err
@@ -183,12 +182,12 @@ func (fd *FaultDetector) Stop() {
 // checkFault continuously checks for the faults at regular interval.
 func (fd *FaultDetector) checkFault() {
 	startTime := time.Now()
-
 	fd.logger.Infof("Checking current batch with output index %d.", fd.currentOutputIndex)
 
 	nextOutputIndex, err := fd.oracleContractAccessor.GetNextOutputIndex()
 	if err != nil {
 		fd.logger.Errorf("Failed to query next output index.")
+		fd.metrics.apiConnectionFailure.Inc()
 		time.Sleep(waitTimeInFailure * time.Second)
 		return
 	}
@@ -203,6 +202,7 @@ func (fd *FaultDetector) checkFault() {
 	l2OutputData, err := fd.oracleContractAccessor.GetL2Output(encoding.MustConvertUint64ToBigInt(fd.currentOutputIndex))
 	if err != nil {
 		fd.logger.Errorf("Failed to fetch output associated with index %d.", fd.currentOutputIndex)
+		fd.metrics.apiConnectionFailure.Inc()
 		time.Sleep(waitTimeInFailure * time.Second)
 		return
 	}
@@ -210,6 +210,7 @@ func (fd *FaultDetector) checkFault() {
 	latestBlockNumber, err := fd.l2RpcApi.GetLatestBlockNumber(fd.ctx)
 	if err != nil {
 		fd.logger.Errorf("Failed to query L2 latest block number %d", latestBlockNumber)
+		fd.metrics.apiConnectionFailure.Inc()
 		time.Sleep(waitTimeInFailure * time.Second)
 		return
 	}
@@ -225,6 +226,7 @@ func (fd *FaultDetector) checkFault() {
 	outputBlockHeader, err := fd.l2RpcApi.GetBlockHeaderByNumber(fd.ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber))
 	if err != nil {
 		fd.logger.Errorf("Failed to fetch block header by number %d.", l2OutputBlockNumber)
+		fd.metrics.apiConnectionFailure.Inc()
 		time.Sleep(waitTimeInFailure * time.Second)
 		return
 	}
@@ -232,6 +234,7 @@ func (fd *FaultDetector) checkFault() {
 	messagePasserProofResponse, err := fd.l2RpcApi.GetProof(fd.ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber), common.HexToAddress(chain.L2BedrockMessagePasserAddress))
 	if err != nil {
 		fd.logger.Errorf("Failed to fetch message passer proof for the block with height %d and address %s.", l2OutputBlockNumber, chain.L2BedrockMessagePasserAddress)
+		fd.metrics.apiConnectionFailure.Inc()
 		time.Sleep(waitTimeInFailure * time.Second)
 		return
 	}
@@ -241,21 +244,20 @@ func (fd *FaultDetector) checkFault() {
 		messagePasserProofResponse.StorageHash,
 		outputBlockHeader.Hash(),
 	)
-
 	if calculatedOutputRoot != expectedOutputRoot {
 		fd.diverged = true
+		fd.metrics.stateMismatch.Set(1)
 		finalizationTime := time.Unix(int64(outputBlockHeader.Time+fd.faultProofWindow), 0)
 		fd.logger.Errorf("State root does not match expectedStateRoot: %s, calculatedStateRoot: %s, finalizationTime: %s.", expectedOutputRoot, calculatedOutputRoot, finalizationTime)
 		return
 	}
 
-	// TODO: Increment or set in different scenarios
-	fd.metrics.highestOutputIndex.Inc()
-	fd.metrics.stateMismatch.Set(0)
+	fd.metrics.highestOutputIndex.Set(float64(fd.currentOutputIndex))
 
 	// Time taken to execute each batch in milliseconds.
 	elapsedTime := time.Since(startTime).Milliseconds()
 	fd.logger.Infof("Successfully checked current batch with index %d --> ok, time taken %dms.", fd.currentOutputIndex, elapsedTime)
 	fd.diverged = false
 	fd.currentOutputIndex++
+	fd.metrics.stateMismatch.Set(0)
 }

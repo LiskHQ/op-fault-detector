@@ -33,5 +33,6 @@ func ComputeL2OutputRoot(stateRoot common.Hash, storageHash common.Hash, outputB
 	}
 
 	outputRoot := crypto.Keccak256Hash(l2Output.Marshal())
+
 	return hexutil.Encode(outputRoot[:])
 }

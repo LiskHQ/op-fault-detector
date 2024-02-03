@@ -31,13 +31,12 @@ var l2NetworkChainIDs = L2ChainIDs{
 	liskSepolia:                 4202,
 }
 
-const L2BedrockMessagePasserAddress string = "0x4200000000000000000000000000000000000016"
-
 type NetworkType = string
 
 const (
-	L1 = NetworkType("L1")
-	L2 = NetworkType("L2")
+	L1                            = NetworkType("L1")
+	L2                            = NetworkType("L2")
+	L2BedrockMessagePasserAddress = "0x4200000000000000000000000000000000000016"
 )
 
 // Contracts has information of the L1 & L2 contracts addresses.
