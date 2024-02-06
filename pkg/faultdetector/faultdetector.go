@@ -83,20 +83,20 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 
 	l2ChainID, err := l2RpcApi.GetChainID(ctx)
 	if err != nil {
-		logger.Errorf("Failed to get L2 provider's chainID: %d, error: %w", l2ChainID.Int64(), err)
+		logger.Errorf("Failed to get L2 provider's chainID: %d, error: %w", encoding.MustConvertBigIntToUint64(l2ChainID), err)
 		return nil, err
 	}
 
 	// Initialize Oracle contract accessor
 	chainConfig := &chain.ConfigOptions{
 		L1RPCEndpoint:                 faultDetectorConfig.L1RPCEndpoint,
-		ChainID:                       l2ChainID.Uint64(),
+		ChainID:                       encoding.MustConvertBigIntToUint64(l2ChainID),
 		L2OutputOracleContractAddress: faultDetectorConfig.L2OutputOracleContractAddress,
 	}
 
 	oracleContractAccessor, err := chain.NewOracleAccessor(ctx, chainConfig)
 	if err != nil {
-		logger.Errorf("Failed to create Oracle contract accessor with chainID: %d, L1 endpoint: %s and L2OutputOracleContractAddress: %s, error: %w", l2ChainID.Int64(), faultDetectorConfig.L1RPCEndpoint, faultDetectorConfig.L2OutputOracleContractAddress, err)
+		logger.Errorf("Failed to create Oracle contract accessor with chainID: %d, L1 endpoint: %s and L2OutputOracleContractAddress: %s, error: %w", encoding.MustConvertBigIntToUint64(l2ChainID), faultDetectorConfig.L1RPCEndpoint, faultDetectorConfig.L2OutputOracleContractAddress, err)
 		return nil, err
 	}
 
@@ -111,24 +111,24 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 	var currentOutputIndex uint64
 	if int64(faultDetectorConfig.Startbatchindex) == -1 {
 		logger.Infof("Finding appropriate starting unfinalized batch....")
-		// firstUnfinalized, _ := FindFirstUnfinalizedOutputIndex(
-		// 	ctx,
-		// 	logger,
-		// 	encoding.MustConvertBigIntToUint64(finalizedPeriodSeconds),
-		// 	oracleContractAccessor,
-		// 	l2RpcApi,
-		// )
-		// if firstUnfinalized == 0 {
-		// 	logger.Infof("No unfinalized batches found. skipping all batches.")
-		// 	nextOutputIndex, err := oracleContractAccessor.GetNextOutputIndex()
-		// 	if err != nil {
-		// 		logger.Errorf("Failed to query next output index %s", err)
-		// 		return nil, err
-		// 	}
-		// 	currentOutputIndex = encoding.MustConvertBigIntToUint64(nextOutputIndex) - 1
-		// } else {
-		// 	currentOutputIndex = firstUnfinalized
-		// }
+		firstUnfinalized, _ := FindFirstUnfinalizedOutputIndex(
+			ctx,
+			logger,
+			encoding.MustConvertBigIntToUint64(finalizedPeriodSeconds),
+			oracleContractAccessor,
+			l2RpcApi,
+		)
+		if firstUnfinalized == 0 {
+			logger.Infof("No unfinalized batches found. skipping all batches.")
+			nextOutputIndex, err := oracleContractAccessor.GetNextOutputIndex()
+			if err != nil {
+				logger.Errorf("Failed to query next output index %s", err)
+				return nil, err
+			}
+			currentOutputIndex = encoding.MustConvertBigIntToUint64(nextOutputIndex) - 1
+		} else {
+			currentOutputIndex = firstUnfinalized
+		}
 	} else {
 		currentOutputIndex = faultDetectorConfig.Startbatchindex
 	}
@@ -193,6 +193,7 @@ func (fd *FaultDetector) checkFault() {
 	}
 
 	latestBatchIndex := encoding.MustConvertBigIntToUint64(nextOutputIndex) - 1
+	fd.logger.Infof("Latest batch index is set to %d.", latestBatchIndex)
 	if fd.currentOutputIndex > latestBatchIndex {
 		fd.logger.Infof("Current output index %d is ahead of the oracle latest batch index %d. Waiting...", fd.currentOutputIndex, latestBatchIndex)
 		time.Sleep(waitTimeInFailure * time.Second)
