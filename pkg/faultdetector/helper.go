@@ -3,14 +3,25 @@ package faultdetector
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/LiskHQ/op-fault-detector/pkg/chain"
 	"github.com/LiskHQ/op-fault-detector/pkg/encoding"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
+type ChainAPIClient interface {
+	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
+}
+
+type OracleAccessor interface {
+	GetNextOutputIndex() (*big.Int, error)
+	GetL2Output(index *big.Int) (chain.L2Output, error)
+}
+
 // FindFirstUnfinalizedOutputIndex finds and returns the first L2 output index that has not yet passed the fault proof window.
-func FindFirstUnfinalizedOutputIndex(ctx context.Context, logger log.Logger, fpw uint64, oracleAccessor *chain.OracleAccessor, l2RpcApi *chain.ChainAPIClient) (uint64, error) {
+func FindFirstUnfinalizedOutputIndex(ctx context.Context, logger log.Logger, fpw uint64, oracleAccessor OracleAccessor, l2RpcApi ChainAPIClient) (uint64, error) {
 	latestBlockHeader, err := l2RpcApi.GetLatestBlockHeader(ctx)
 	if err != nil {
 		logger.Errorf("Failed to get latest block header from L2 provider, error: %w", err)
