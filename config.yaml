@@ -15,5 +15,5 @@ api:
 fault_detector:
   l1_rpc_endpoint: "https://rpc.notadegen.com/eth"
   l2_rpc_endpoint: "https://mainnet.optimism.io/"
-  start_batch_index: 5874
+  start_batch_index: -1
   l2_output_oracle_contract_address: "0x0000000000000000000000000000000000000000"

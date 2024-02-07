@@ -1,5 +1,6 @@
+ARG GOLANG_VERSION=1
 # Pull golang alpine to build binary
-FROM golang:1.21-alpine3.19 as builder
+FROM golang:${GOLANG_VERSION}-alpine as builder
 
 RUN apk add --no-cache make
 
@@ -10,12 +11,16 @@ COPY . .
 RUN make build-app
 
 # Use alpine to run app
-FROM alpine:3.19
-WORKDIR /app
-COPY --from=builder /app/bin/faultdetector .
+FROM alpine
+RUN adduser -D onchain && \
+    mkdir /home/onchain/faultdetector && \
+    chown -R onchain:onchain /home/onchain/
+USER onchain
+WORKDIR /home/onchain/faultdetector
+COPY --from=builder /app/bin/faultdetector ./bin/
 COPY --from=builder /app/config.yaml .
 
 EXPOSE 8080
 
 # Run app
-CMD [ "./faultdetector" ]
+CMD [ "./bin/faultdetector" ]
