@@ -8,7 +8,7 @@ WORKDIR /app
 
 # Build binary
 COPY . .
-RUN make build-app
+RUN make build
 
 # Use alpine to run app
 FROM alpine

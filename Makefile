@@ -15,7 +15,11 @@ build:
 	@echo "$(GREEN) Binary successfully built$(COLOR_END)"
 
 run-app:
+ifdef config
+	@./bin/${APP_NAME} --config $(config)
+else
 	@./bin/${APP_NAME}
+endif
 
 test:
 	@echo "Test packages"
@@ -46,5 +50,10 @@ docker-build:
 
 .PHONY: docker-run
 docker-run:
+ifdef config
+	@echo "$(BLUE) Running docker image...$(COLOR_END)"
+	@docker run -p 8080:8080 -v $(config):/home/onchain/faultdetector/config.yaml -t $(APP_NAME)
+else
 	@echo "$(BLUE) Running docker image...$(COLOR_END)"
 	@docker run -p 8080:8080 $(APP_NAME)
+endif
