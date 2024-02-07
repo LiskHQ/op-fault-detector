@@ -165,8 +165,7 @@ func (fd *FaultDetector) Start() {
 	for {
 		select {
 		case <-fd.ticker.C:
-			err := fd.checkFault()
-			if err != nil {
+			if err := fd.checkFault(); err != nil {
 				time.Sleep(waitTimeInFailure * time.Second)
 			}
 		case <-fd.quitTickerChan:
