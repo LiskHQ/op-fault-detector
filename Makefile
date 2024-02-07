@@ -10,13 +10,8 @@ BLUE = \033[0;34m
 COLOR_END = \033[0;39m
 
 build:
-	@echo "$(BLUE)» Building fault detector application... $(COLOR_END)"
-	@CGO_ENABLED=0 go build -v ./...
-	@echo "$(GREEN) Binary successfully built$(COLOR_END)"
-
-build-app:
 	@echo "$(BLUE)» Building fault detector application binary... $(COLOR_END)"
-	@CGO_ENABLED=0 go build -a -o bin/$(APP_NAME) ./cmd/
+	@CGO_ENABLED=0 go build -a -v -o bin/$(APP_NAME) ./cmd/
 	@echo "$(GREEN) Binary successfully built$(COLOR_END)"
 
 run-app:
