@@ -8,6 +8,7 @@ import (
 
 	"github.com/LiskHQ/op-fault-detector/pkg/chain"
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
+	"github.com/LiskHQ/op-fault-detector/pkg/encoding"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -80,20 +81,20 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 
 	l2ChainID, err := l2RpcApi.GetChainID(ctx)
 	if err != nil {
-		logger.Errorf("Failed to get L2 provider's chainID: %d, error: %w", l2ChainID.Int64(), err)
+		logger.Errorf("Failed to get L2 provider's chainID: %d, error: %w", encoding.MustConvertBigIntToUint64(l2ChainID), err)
 		return nil, err
 	}
 
 	// Initialize Oracle contract accessor
 	chainConfig := &chain.ConfigOptions{
 		L1RPCEndpoint:                 faultDetectorConfig.L1RPCEndpoint,
-		ChainID:                       l2ChainID.Uint64(),
+		ChainID:                       encoding.MustConvertBigIntToUint64(l2ChainID),
 		L2OutputOracleContractAddress: faultDetectorConfig.L2OutputOracleContractAddress,
 	}
 
 	oracleContractAccessor, err := chain.NewOracleAccessor(ctx, chainConfig)
 	if err != nil {
-		logger.Errorf("Failed to create Oracle contract accessor with chainID: %d, L1 endpoint: %s and L2OutputOracleContractAddress: %s, error: %w", l2ChainID.Int64(), faultDetectorConfig.L1RPCEndpoint, faultDetectorConfig.L2OutputOracleContractAddress, err)
+		logger.Errorf("Failed to create Oracle contract accessor with chainID: %d, L1 endpoint: %s and L2OutputOracleContractAddress: %s, error: %w", encoding.MustConvertBigIntToUint64(l2ChainID), faultDetectorConfig.L1RPCEndpoint, faultDetectorConfig.L2OutputOracleContractAddress, err)
 		return nil, err
 	}
 

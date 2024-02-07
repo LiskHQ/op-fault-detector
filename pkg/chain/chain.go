@@ -5,6 +5,7 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/LiskHQ/op-fault-detector/pkg/encoding"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -58,6 +59,15 @@ func (c *ChainAPIClient) GetLatestBlockNumber(ctx context.Context) (uint64, erro
 // GetBlockByNumber returns block for a given block number from a connected node.
 func (c *ChainAPIClient) GetBlockByNumber(ctx context.Context, blockNumber *big.Int) (*types.Block, error) {
 	return c.eth.BlockByNumber(ctx, blockNumber)
+}
+
+// GetLatestBlockHeader returns latest block header from a connected node.
+func (c *ChainAPIClient) GetLatestBlockHeader(ctx context.Context) (*types.Header, error) {
+	blockNumber, err := c.eth.BlockNumber(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return c.eth.HeaderByNumber(ctx, encoding.MustConvertUint64ToBigInt(blockNumber))
 }
 
 // GetProof returns the account and storage values, including the Merkle proof, of the specified account/address.
