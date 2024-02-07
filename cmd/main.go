@@ -18,6 +18,7 @@ import (
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
+	"github.com/LiskHQ/op-fault-detector/pkg/utils/notification"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -33,6 +34,7 @@ type App struct {
 	wg            *sync.WaitGroup
 	apiServer     *api.HTTPServer
 	faultDetector *faultdetector.FaultDetector
+	slackClient   *notification.Slack
 }
 
 // NewApp returns [App] with all the initialized services and variables.
@@ -71,6 +73,13 @@ func NewApp(logger log.Logger) (*App, error) {
 		return nil, err
 	}
 
+	// Init slack notification service
+	slackClient := notification.NewSlack(
+		ctx,
+		logger,
+		config.SlackConfig,
+	)
+
 	// Start API Server
 	apiServer := api.NewHTTPServer(ctx, logger, &wg, config, errorChan)
 
@@ -85,6 +94,7 @@ func NewApp(logger log.Logger) (*App, error) {
 		wg:            &wg,
 		apiServer:     apiServer,
 		faultDetector: faultDetector,
+		slackClient:   slackClient,
 	}, nil
 }
 

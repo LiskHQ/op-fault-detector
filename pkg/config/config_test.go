@@ -382,6 +382,9 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
+				&SlackConfig{
+					ChannelID: "testID",
+				},
 			},
 			want: nil,
 		},
@@ -404,6 +407,9 @@ func TestValidate_Config(t *testing.T) {
 					L2RPCEndpoint:                 "http://xyz.com",
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
+				},
+				&SlackConfig{
+					ChannelID: "testID",
 				},
 			},
 			want: formatError(
@@ -429,6 +435,9 @@ func TestValidate_Config(t *testing.T) {
 					L2RPCEndpoint:                 "http://xyz.com",
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
+				},
+				&SlackConfig{
+					ChannelID: "testID",
 				},
 			},
 			want: formatError(
@@ -464,6 +473,9 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
+				&SlackConfig{
+					ChannelID: "testID",
+				},
 			},
 			want: formatError(
 				multierr.Combine(
@@ -495,6 +507,9 @@ func TestValidate_Config(t *testing.T) {
 					L2RPCEndpoint:                 "htps://xyz.com",
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "xx0000000000000000000000000000000000000000",
+				},
+				&SlackConfig{
+					ChannelID: "testChannelID",
 				},
 			},
 			want: formatError(
