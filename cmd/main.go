@@ -57,6 +57,13 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 	wg := sync.WaitGroup{}
 	errorChan := make(chan error, 1)
 
+	// Init slack notification service
+	slackClient := notification.NewSlack(
+		ctx,
+		logger,
+		config.SlackConfig,
+	)
+
 	// Start Fault Detector
 	faultDetector, err := faultdetector.NewFaultDetector(
 		ctx,
@@ -65,19 +72,13 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 		&wg,
 		config.FaultDetectorConfig,
 		reg,
+		slackClient,
 	)
 
 	if err != nil {
 		logger.Errorf("Failed to create fault detector service.")
 		return nil, err
 	}
-
-	// Init slack notification service
-	slackClient := notification.NewSlack(
-		ctx,
-		logger,
-		config.SlackConfig,
-	)
 
 	// Start API Server
 	apiServer := api.NewHTTPServer(ctx, logger, &wg, config, errorChan)
@@ -126,6 +127,10 @@ func (app *App) Start() {
 
 		case err := <-app.errChan:
 			app.logger.Errorf("Received error of %v", err)
+			if err := app.slackClient.SendNotification("Error while starting application"); err != nil {
+				app.logger.Errorf("Error while sending notification, error: %w", err)
+			}
+
 			return
 		}
 	}
