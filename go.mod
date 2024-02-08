@@ -1,6 +1,6 @@
 module github.com/LiskHQ/op-fault-detector
 
-go 1.21.5
+go 1.21
 
 require (
 	github.com/ethereum-optimism/optimism v1.4.2
