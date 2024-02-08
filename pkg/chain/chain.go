@@ -61,6 +61,11 @@ func (c *ChainAPIClient) GetBlockByNumber(ctx context.Context, blockNumber *big.
 	return c.eth.BlockByNumber(ctx, blockNumber)
 }
 
+// GetBlockHeaderByNumber returns block header for a given block number from a connected node.
+func (c *ChainAPIClient) GetBlockHeaderByNumber(ctx context.Context, blockNumber *big.Int) (*types.Header, error) {
+	return c.eth.HeaderByNumber(ctx, blockNumber)
+}
+
 // GetLatestBlockHeader returns latest block header from a connected node.
 func (c *ChainAPIClient) GetLatestBlockHeader(ctx context.Context) (*types.Header, error) {
 	blockNumber, err := c.eth.BlockNumber(ctx)
