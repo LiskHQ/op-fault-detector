@@ -19,6 +19,8 @@ fault_detector:
   l2_output_oracle_contract_address: "0x0000000000000000000000000000000000000000"
 
 
-# Slack notification service related configurations
-slack:
-  channel_id: "D06HM4LFMN1"
+# Notification service related configurations
+notification:
+  enable: true
+  slack:
+    channel_id: ""

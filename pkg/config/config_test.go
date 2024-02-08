@@ -382,8 +382,11 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
-				&SlackConfig{
-					ChannelID: "testID",
+				&Notification{
+					&SlackConfig{
+						"testID",
+					},
+					true,
 				},
 			},
 			want: nil,
@@ -408,8 +411,11 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
-				&SlackConfig{
-					ChannelID: "testID",
+				&Notification{
+					&SlackConfig{
+						"testID",
+					},
+					true,
 				},
 			},
 			want: formatError(
@@ -436,8 +442,11 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
-				&SlackConfig{
-					ChannelID: "testID",
+				&Notification{
+					&SlackConfig{
+						"testID",
+					},
+					true,
 				},
 			},
 			want: formatError(
@@ -473,8 +482,11 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
-				&SlackConfig{
-					ChannelID: "testID",
+				&Notification{
+					&SlackConfig{
+						"testID",
+					},
+					true,
 				},
 			},
 			want: formatError(
@@ -508,8 +520,11 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "xx0000000000000000000000000000000000000000",
 				},
-				&SlackConfig{
-					ChannelID: "testChannelID",
+				&Notification{
+					&SlackConfig{
+						"testID",
+					},
+					true,
 				},
 			},
 			want: formatError(

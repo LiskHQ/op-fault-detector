@@ -34,7 +34,7 @@ type App struct {
 	wg            *sync.WaitGroup
 	apiServer     *api.HTTPServer
 	faultDetector *faultdetector.FaultDetector
-	slackClient   *notification.Slack
+	notification  *notification.Channel
 }
 
 // NewApp returns [App] with all the initialized services and variables.
@@ -58,11 +58,18 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 	errorChan := make(chan error, 1)
 
 	// Init slack notification service
-	slackClient := notification.NewSlack(
-		ctx,
-		logger,
-		config.SlackConfig,
-	)
+	var notificationClient *notification.Channel
+	if config.Notification.Enable {
+		notificationClient, err = notification.NewClient(
+			ctx,
+			logger,
+			config.Notification,
+		)
+		if err != nil {
+			logger.Errorf("Failed to initialize notification service, error: %v.", err)
+			return nil, err
+		}
+	}
 
 	// Start Fault Detector
 	faultDetector, err := faultdetector.NewFaultDetector(
@@ -72,7 +79,7 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 		&wg,
 		config.FaultDetectorConfig,
 		reg,
-		slackClient,
+		notificationClient,
 	)
 
 	if err != nil {
@@ -94,7 +101,7 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 		wg:            &wg,
 		apiServer:     apiServer,
 		faultDetector: faultDetector,
-		slackClient:   slackClient,
+		notification:  notificationClient,
 	}, nil
 }
 
@@ -127,10 +134,11 @@ func (app *App) Start() {
 
 		case err := <-app.errChan:
 			app.logger.Errorf("Received error of %v", err)
-			if err := app.slackClient.SendNotification("Error while starting application"); err != nil {
-				app.logger.Errorf("Error while sending notification, error: %w", err)
+			if app.notification != nil {
+				if err := app.notification.Notify("Error while starting application"); err != nil {
+					app.logger.Errorf("Error while sending notification, error: %w", err)
+				}
 			}
-
 			return
 		}
 	}

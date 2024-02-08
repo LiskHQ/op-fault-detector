@@ -36,7 +36,7 @@ type FaultDetector struct {
 	diverged               bool
 	ticker                 *time.Ticker
 	quitTickerChan         chan struct{}
-	slackClient            *notification.Slack
+	notification           *notification.Channel
 }
 
 type faultDetectorMetrics struct {
@@ -70,7 +70,7 @@ func newFaultDetectorMetrics(reg prometheus.Registerer) *faultDetectorMetrics {
 }
 
 // NewFaultDetector will return [FaultDetector] with the initialized providers and configuration.
-func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, faultDetectorConfig *config.FaultDetectorConfig, metricRegistry *prometheus.Registry, slackClient *notification.Slack) (*FaultDetector, error) {
+func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, faultDetectorConfig *config.FaultDetectorConfig, metricRegistry *prometheus.Registry, notification *notification.Channel) (*FaultDetector, error) {
 	// Initialize API Providers
 	l1RpcApi, err := chain.GetAPIClient(ctx, faultDetectorConfig.L1RPCEndpoint, logger)
 	if err != nil {
@@ -153,7 +153,7 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 		currentOutputIndex:     currentOutputIndex,
 		diverged:               false,
 		metrics:                metrics,
-		slackClient:            slackClient,
+		notification:           notification,
 	}
 
 	return faultDetector, nil
@@ -249,8 +249,11 @@ func (fd *FaultDetector) checkFault() error {
 		fd.metrics.stateMismatch.Set(1)
 		finalizationTime := time.Unix(int64(outputBlockHeader.Time+fd.faultProofWindow), 0)
 
-		if err := fd.slackClient.SendNotification(fmt.Sprintf("Fault detected, state root does not match: \noutputIndex: %d, \nExpectedStateRoot: %s, \nCalculatedStateRoot: %s, \nFinalizationTime: %s.", fd.currentOutputIndex, expectedOutputRoot, calculatedOutputRoot, finalizationTime)); err != nil {
-			fd.logger.Errorf("Error while sending notification, error: %w", err)
+		if fd.notification != nil {
+			notificationMessage := fmt.Sprintf("*Fault detected*, state root does not match:\noutputIndex: %d\nExpectedStateRoot: %s\nCalculatedStateRoot: %s\nFinalizationTime: %s", fd.currentOutputIndex, expectedOutputRoot, calculatedOutputRoot, finalizationTime)
+			if err := fd.notification.Notify(notificationMessage); err != nil {
+				fd.logger.Errorf("Error while sending notification, error: %w", err)
+			}
 		}
 
 		fd.logger.Errorf("State root does not match expectedStateRoot: %s, calculatedStateRoot: %s, finalizationTime: %s.", expectedOutputRoot, calculatedOutputRoot, finalizationTime)

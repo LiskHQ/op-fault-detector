@@ -1,7 +1,8 @@
-package notification
+package slack
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
@@ -17,9 +18,13 @@ type Slack struct {
 	logger    log.Logger
 }
 
-// NewSlack will return [Slack] with the initialized configuration.
-func NewSlack(ctx context.Context, logger log.Logger, slackConfig *config.SlackConfig) *Slack {
-	slackAccessToken := os.Getenv("SLACK_ACCESS_TOKEN_KEY")
+// NewClient will return [Slack] with the initialized configuration.
+func NewClient(ctx context.Context, logger log.Logger, slackConfig *config.SlackConfig) (*Slack, error) {
+	var slackAccessToken string
+	if slackAccessToken = os.Getenv("SLACK_ACCESS_TOKEN_KEY"); len(slackAccessToken) == 0 {
+		return nil, fmt.Errorf("failed to access slack API token from the environment")
+	}
+
 	client := slack.New(slackAccessToken)
 
 	return &Slack{
@@ -27,11 +32,11 @@ func NewSlack(ctx context.Context, logger log.Logger, slackConfig *config.SlackC
 		ChannelID: slackConfig.ChannelID,
 		ctx:       ctx,
 		logger:    logger,
-	}
+	}, nil
 }
 
-// SendNotification sends a message to the slack channel.
-func (s *Slack) SendNotification(msg string) error {
+// Notify sends a message to the slack channel.
+func (s *Slack) Notify(msg string) error {
 	_, timestamp, err := s.client.PostMessageContext(
 		s.ctx,
 		s.ChannelID,
