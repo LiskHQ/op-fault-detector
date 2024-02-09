@@ -1,12 +1,12 @@
 # op-fault-detector
 
-Fault detector is a service to detect mismatch between a local view of the Optimism or superchain network and L2 output proposals published to Ethereum. The is an alternate implementation of the [fault monitoring](https://github.com/ethereum-optimism/optimism/blob/v1.5.0/packages/chain-mon/src/fault-mon/README.md) service from [Optimism](https://www.optimism.io/).
+Fault detector is a service that identifies mismatches between a local view of the Optimism or superchain network and L2 output proposals published to Ethereum. Here is the reference to the original implementation of the [fault monitoring](https://github.com/ethereum-optimism/optimism/blob/v1.5.0/packages/chain-mon/src/fault-mon/README.md) service from [Optimism](https://www.optimism.io/).
 
 ## How it works
 
 The state root of the block is published to the [L2OutputOracle](https://github.com/ethereum-optimism/optimism/blob/39b7262cc3ffd78cd314341b8512b2683c1d9af7/packages/contracts-bedrock/contracts/L1/L2OutputOracle.sol) contract on Ethereum. The `L2OutputOracle` is inferred from the portal contract.
 
-In the application we take state root of the given block as reported by an Optimism node and compute `outputRoot` from it and compare it with the `outputRoot` as published to `L2OutputOracle` contract on  Ethereum.
+In the application, we take the state root of the given block as reported by an Optimism node, compute `outputRoot` from it and compare it with the `outputRoot` as published to `L2OutputOracle` contract on Ethereum.
 
 ## Installation
 
@@ -52,7 +52,7 @@ test: Runs tests
 
 ## Config
 
-Config file is used to configure the application. Currently below is the default config found under `./config.yaml`. To provide custom config, edit the `./config.yaml` or create own and provide it while running the application `make run-app config={PATH_TO_CUSTOM_CONFIG_FILE}`.
+The configuration file is used to configure the application. Currently, the default configuration is found under `./config.yaml`. To provide custom config, edit the `./config.yaml` or create own and provide it while running the application `make run-app config={PATH_TO_CUSTOM_CONFIG_FILE}`.
 
 ```yaml
 # General system configurations
