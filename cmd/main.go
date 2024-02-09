@@ -66,7 +66,7 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 			config.Notification,
 		)
 		if err != nil {
-			logger.Errorf("Failed to initialize notification service, error: %v.", err)
+			logger.Errorf("Failed to initialize notification service, error: %w", err)
 			return nil, err
 		}
 	}
@@ -136,7 +136,7 @@ func (app *App) Start() {
 			app.logger.Errorf("Received error of %v", err)
 			if app.notification != nil {
 				if err := app.notification.Notify("Error while starting application"); err != nil {
-					app.logger.Errorf("Error while sending notification, error: %w", err)
+					app.logger.Errorf("Failed to send notification, error: %w", err)
 				}
 			}
 			return

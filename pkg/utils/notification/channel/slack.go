@@ -44,7 +44,7 @@ func (s *Slack) Notify(msg string) error {
 	)
 
 	if err != nil {
-		s.logger.Errorf("Error while sending notification to the channel %s, error: %w", s.ChannelID, err)
+		s.logger.Errorf("Failed to send notification to the channel %s, error: %w", s.ChannelID, err)
 		return err
 	}
 
