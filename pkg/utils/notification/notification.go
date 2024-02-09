@@ -13,8 +13,8 @@ type Channel struct {
 	slack *slack.Slack
 }
 
-// NewClient will return [Channel] with the initialized channel information.
-func NewClient(ctx context.Context, logger log.Logger, notificationConfig *config.Notification) (*Channel, error) {
+// NewChannel will return [Channel] with the initialized channel information.
+func NewChannel(ctx context.Context, logger log.Logger, notificationConfig *config.Notification) (*Channel, error) {
 	var slackClient *slack.Slack
 	if notificationConfig.Slack != nil {
 		client, err := slack.NewClient(ctx, logger, notificationConfig.Slack)

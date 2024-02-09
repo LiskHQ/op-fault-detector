@@ -60,7 +60,7 @@ type SlackConfig struct {
 	ChannelID string `mapstructure:"channel_id"`
 }
 
-// notificationConfig struct is used to store notification configurations from the parsed config file.
+// Notification struct is used to store notification configurations from the parsed config file.
 type Notification struct {
 	Slack  *SlackConfig `mapstructure:"slack"`
 	Enable bool         `mapstructure:"enable"`

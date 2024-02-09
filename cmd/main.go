@@ -57,10 +57,10 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 	wg := sync.WaitGroup{}
 	errorChan := make(chan error, 1)
 
-	// Init slack notification service
-	var notificationClient *notification.Channel
+	// Initialize notification service
+	var notificationChannel *notification.Channel
 	if config.Notification.Enable {
-		notificationClient, err = notification.NewClient(
+		notificationChannel, err = notification.NewChannel(
 			ctx,
 			logger,
 			config.Notification,
@@ -79,7 +79,7 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 		&wg,
 		config.FaultDetectorConfig,
 		reg,
-		notificationClient,
+		notificationChannel,
 	)
 
 	if err != nil {
@@ -101,7 +101,7 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 		wg:            &wg,
 		apiServer:     apiServer,
 		faultDetector: faultDetector,
-		notification:  notificationClient,
+		notification:  notificationChannel,
 	}, nil
 }
 
