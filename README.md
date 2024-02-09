@@ -96,7 +96,7 @@ fault_detector:
 - `fault_detector.l1_rpc_endpoint`: RPC endpoint for L1 chain.
 - `fault_detector.l2_rpc_endpoint`: RPC endpoint for L2 chain.
 - `fault_detector.start_batch_index`: Provide batch_index to start from. If not provided, it will pick default `-1` and then application will find the first unfinalized batch index that has not yet passed the fault proof window.
-- `fault_detector.l2_output_oracle_contract_address`: Deployed `OptimismPortal` contract address used to retrieve necessary info for output verification. Only provided for the chains other than Optimism and Lisk Superchain.
+- `fault_detector.l2_output_oracle_contract_address`: Deployed `L2OutputOracle` contract address used to retrieve necessary info for output verification. Only provided for the chains other than Optimism and Lisk Superchain.
 
 ## API and Metrics
 
