@@ -1,5 +1,11 @@
 # op-fault-detector
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
+![GitHub repo size](https://img.shields.io/github/repo-size/liskhq/op-fault-detector)
+![GitHub issues](https://img.shields.io/github/issues-raw/liskhq/op-fault-detector)
+![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/liskhq/op-fault-detector)
+[![PR CI](https://github.com/LiskHQ/op-fault-detector/actions/workflows/pr.yaml/badge.svg?branch=main&event=merge_group)](https://github.com/LiskHQ/op-fault-detector/actions/workflows/pr.yaml)
+
 Fault detector is a service that identifies mismatches between a local view of the Optimism or superchain network and L2 output proposals published to Ethereum. Here is the reference to the original implementation of the [fault monitoring](https://github.com/ethereum-optimism/optimism/blob/v1.5.0/packages/chain-mon/src/fault-mon/README.md) service from [Optimism](https://www.optimism.io/).
 
 ## How it works
