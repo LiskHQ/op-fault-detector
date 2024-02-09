@@ -36,7 +36,7 @@ type FaultDetector struct {
 	diverged               bool
 	ticker                 *time.Ticker
 	quitTickerChan         chan struct{}
-	notification           *notification.Channel
+	notification           *notification.Notification
 }
 
 type faultDetectorMetrics struct {
@@ -70,7 +70,7 @@ func newFaultDetectorMetrics(reg prometheus.Registerer) *faultDetectorMetrics {
 }
 
 // NewFaultDetector will return [FaultDetector] with the initialized providers and configuration.
-func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, faultDetectorConfig *config.FaultDetectorConfig, metricRegistry *prometheus.Registry, notification *notification.Channel) (*FaultDetector, error) {
+func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, faultDetectorConfig *config.FaultDetectorConfig, metricRegistry *prometheus.Registry, notification *notification.Notification) (*FaultDetector, error) {
 	// Initialize API Providers
 	l1RpcApi, err := chain.GetAPIClient(ctx, faultDetectorConfig.L1RPCEndpoint, logger)
 	if err != nil {

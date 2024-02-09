@@ -34,7 +34,7 @@ type App struct {
 	wg            *sync.WaitGroup
 	apiServer     *api.HTTPServer
 	faultDetector *faultdetector.FaultDetector
-	notification  *notification.Channel
+	notification  *notification.Notification
 }
 
 // NewApp returns [App] with all the initialized services and variables.
@@ -58,9 +58,9 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 	errorChan := make(chan error, 1)
 
 	// Initialize notification service
-	var notificationChannel *notification.Channel
+	var notificationChannel *notification.Notification
 	if config.Notification.Enable {
-		notificationChannel, err = notification.NewChannel(
+		notificationChannel, err = notification.NewNotification(
 			ctx,
 			logger,
 			config.Notification,

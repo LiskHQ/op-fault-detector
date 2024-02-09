@@ -8,13 +8,13 @@ import (
 	slack "github.com/LiskHQ/op-fault-detector/pkg/utils/notification/channel"
 )
 
-// Channel holds information on all the supported channels require to communicate with the channel API.
-type Channel struct {
+// Notification holds information on all the supported channels require to communicate with the channel API.
+type Notification struct {
 	slack *slack.Slack
 }
 
-// NewChannel will return [Channel] with the initialized channel information.
-func NewChannel(ctx context.Context, logger log.Logger, notificationConfig *config.Notification) (*Channel, error) {
+// NewNotification will return [Notification] with the initialized channel information.
+func NewNotification(ctx context.Context, logger log.Logger, notificationConfig *config.Notification) (*Notification, error) {
 	var slackClient *slack.Slack
 	if notificationConfig.Slack != nil {
 		client, err := slack.NewClient(ctx, logger, notificationConfig.Slack)
@@ -25,17 +25,17 @@ func NewChannel(ctx context.Context, logger log.Logger, notificationConfig *conf
 		}
 	}
 
-	return &Channel{
+	return &Notification{
 		slack: slackClient,
 	}, nil
 }
 
 // Notify sends a message to the available channels.
-func (c *Channel) Notify(msg string) *[]error {
+func (n *Notification) Notify(msg string) *[]error {
 	var errors []error
 
-	if c.slack != nil {
-		if err := c.slack.Notify(msg); err != nil {
+	if n.slack != nil {
+		if err := n.slack.Notify(msg); err != nil {
 			errors = append(errors, err)
 		}
 	}

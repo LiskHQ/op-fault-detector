@@ -18,6 +18,7 @@ var (
 	hostRegex             = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`)
 	basePathRegex         = regexp.MustCompile(`^/?api$`)
 	registerVersionRegex  = regexp.MustCompile(`^v[1-9]\d*$`)
+	slackChannelID        = regexp.MustCompile(`^[A-Za-z0-9]{1,255}$`)
 )
 
 // Config struct is used to store the contents of the parsed config file.
@@ -85,8 +86,9 @@ func (c *Config) Validate() error {
 	sysConfigError := c.System.Validate()
 	apiConfigError := c.Api.Validate()
 	fdConfigError := c.FaultDetectorConfig.Validate()
+	notificationConfigError := c.Notification.Validate()
 
-	validationErrors = multierr.Combine(sysConfigError, apiConfigError, fdConfigError)
+	validationErrors = multierr.Combine(sysConfigError, apiConfigError, fdConfigError, notificationConfigError)
 
 	return formatError(validationErrors)
 }
@@ -162,6 +164,18 @@ func (c *FaultDetectorConfig) Validate() error {
 	addressMatched := addressRegex.MatchString(c.L2OutputOracleContractAddress)
 	if !addressMatched {
 		validationErrors = multierr.Append(validationErrors, fmt.Errorf("faultdetector.l2_output_oracle_contract_address expected to match regex: `%s`, received: '%s'", addressRegex.String(), c.L2OutputOracleContractAddress))
+	}
+
+	return validationErrors
+}
+
+// Validate runs validations against an instance of the Notification struct and returns an error when applicable.
+func (c *Notification) Validate() error {
+	var validationErrors error
+
+	slackChannelIDMatched := slackChannelID.MatchString(c.Slack.ChannelID)
+	if !slackChannelIDMatched {
+		validationErrors = multierr.Append(validationErrors, fmt.Errorf("notification.slack.channel_id expected to match regex: `%s`, received: '%s'", slackChannelID.String(), c.Slack.ChannelID))
 	}
 
 	return validationErrors
