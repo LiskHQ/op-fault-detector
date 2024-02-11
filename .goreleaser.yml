@@ -1,0 +1,14 @@
+# .goreleaser.yml
+project_name: import_fault_detector
+builds:
+  - env: [CGO_ENABLED=0]
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    id: "import_fault_detector"
+    dir: .
+    main: ./cmd/

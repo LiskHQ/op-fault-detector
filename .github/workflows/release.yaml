@@ -2,11 +2,10 @@
 name: goreleaser
 
 on:
-  pull_request:
   push:
     # run only against tags
-    tags:
-      - "*"
+    tags: ["v*"]
+
 
 permissions:
   contents: write
@@ -44,6 +43,6 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean
+          args: release -f .goreleaser.yml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
