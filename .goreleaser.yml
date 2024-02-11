@@ -1,5 +1,5 @@
 # .goreleaser.yml
-project_name: import_fault_detector
+project_name: fault_detector
 builds:
   - env: [CGO_ENABLED=0]
     goos:
@@ -9,6 +9,6 @@ builds:
     goarch:
       - amd64
       - arm64
-    id: "import_fault_detector"
+    id: "fault_detector"
     dir: .
     main: ./cmd/
