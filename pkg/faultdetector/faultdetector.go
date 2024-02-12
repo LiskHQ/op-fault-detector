@@ -11,6 +11,7 @@ import (
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/encoding"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
+	"github.com/LiskHQ/op-fault-detector/pkg/utils/notification"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -35,6 +36,7 @@ type FaultDetector struct {
 	diverged               bool
 	ticker                 *time.Ticker
 	quitTickerChan         chan struct{}
+	notification           *notification.Notification
 }
 
 type faultDetectorMetrics struct {
@@ -68,7 +70,7 @@ func newFaultDetectorMetrics(reg prometheus.Registerer) *faultDetectorMetrics {
 }
 
 // NewFaultDetector will return [FaultDetector] with the initialized providers and configuration.
-func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, faultDetectorConfig *config.FaultDetectorConfig, metricRegistry *prometheus.Registry) (*FaultDetector, error) {
+func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan error, wg *sync.WaitGroup, faultDetectorConfig *config.FaultDetectorConfig, metricRegistry *prometheus.Registry, notification *notification.Notification) (*FaultDetector, error) {
 	// Initialize API Providers
 	l1RpcApi, err := chain.GetAPIClient(ctx, faultDetectorConfig.L1RPCEndpoint, logger)
 	if err != nil {
@@ -151,6 +153,7 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 		currentOutputIndex:     currentOutputIndex,
 		diverged:               false,
 		metrics:                metrics,
+		notification:           notification,
 	}
 
 	return faultDetector, nil
@@ -245,6 +248,14 @@ func (fd *FaultDetector) checkFault() error {
 		fd.diverged = true
 		fd.metrics.stateMismatch.Set(1)
 		finalizationTime := time.Unix(int64(outputBlockHeader.Time+fd.faultProofWindow), 0)
+
+		if fd.notification != nil {
+			notificationMessage := fmt.Sprintf("*Fault detected*, state root does not match:\noutputIndex: %d\nExpectedStateRoot: %s\nCalculatedStateRoot: %s\nFinalizationTime: %s", fd.currentOutputIndex, expectedOutputRoot, calculatedOutputRoot, finalizationTime)
+			if err := fd.notification.Notify(notificationMessage); err != nil {
+				fd.logger.Errorf("Error while sending notification, error: %w", err)
+			}
+		}
+
 		fd.logger.Errorf("State root does not match expectedStateRoot: %s, calculatedStateRoot: %s, finalizationTime: %s.", expectedOutputRoot, calculatedOutputRoot, finalizationTime)
 		return nil
 	}

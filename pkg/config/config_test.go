@@ -382,6 +382,12 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
+				&Notification{
+					&SlackConfig{
+						"validChannelID",
+					},
+					true,
+				},
 			},
 			want: nil,
 		},
@@ -404,6 +410,12 @@ func TestValidate_Config(t *testing.T) {
 					L2RPCEndpoint:                 "http://xyz.com",
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
+				},
+				&Notification{
+					&SlackConfig{
+						"validChannelID",
+					},
+					true,
 				},
 			},
 			want: formatError(
@@ -429,6 +441,12 @@ func TestValidate_Config(t *testing.T) {
 					L2RPCEndpoint:                 "http://xyz.com",
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
+				},
+				&Notification{
+					&SlackConfig{
+						"validChannelID",
+					},
+					true,
 				},
 			},
 			want: formatError(
@@ -464,6 +482,12 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
+				&Notification{
+					&SlackConfig{
+						"validChannelID",
+					},
+					true,
+				},
 			},
 			want: formatError(
 				multierr.Combine(
@@ -496,6 +520,12 @@ func TestValidate_Config(t *testing.T) {
 					Startbatchindex:               100,
 					L2OutputOracleContractAddress: "xx0000000000000000000000000000000000000000",
 				},
+				&Notification{
+					&SlackConfig{
+						"validChannelID",
+					},
+					true,
+				},
 			},
 			want: formatError(
 				multierr.Combine(
@@ -506,6 +536,86 @@ func TestValidate_Config(t *testing.T) {
 					),
 					fmt.Errorf("faultdetector.l2_rpc_endpoint expected to match regex: `%s`, received: 'htps://xyz.com'", providerEndpointRegex.String()),
 					fmt.Errorf("faultdetector.l2_output_oracle_contract_address expected to match regex: `%s`, received: 'xx0000000000000000000000000000000000000000'", addressRegex.String()),
+				),
+			),
+		},
+		{
+			name: "should return error when invalid channel_id is provided",
+			config: &Config{
+				&System{
+					"info",
+				},
+				&Api{
+					&Server{
+						"127.0.0.256",
+						8080,
+					},
+					"/api",
+					[]string{"v1"},
+				},
+				&FaultDetectorConfig{
+					L1RPCEndpoint:                 "https://xyz.com",
+					L2RPCEndpoint:                 "htps://xyz.com",
+					Startbatchindex:               100,
+					L2OutputOracleContractAddress: "xx0000000000000000000000000000000000000000",
+				},
+				&Notification{
+					&SlackConfig{
+						"invalid&ChannelID",
+					},
+					true,
+				},
+			},
+			want: formatError(
+				multierr.Combine(
+					fmt.Errorf(
+						"api.server.host expected to match regex: `%v`, received: '%v'",
+						hostRegex.String(),
+						"127.0.0.256",
+					),
+					fmt.Errorf("faultdetector.l2_rpc_endpoint expected to match regex: `%s`, received: 'htps://xyz.com'", providerEndpointRegex.String()),
+					fmt.Errorf("faultdetector.l2_output_oracle_contract_address expected to match regex: `%s`, received: 'xx0000000000000000000000000000000000000000'", addressRegex.String()),
+					fmt.Errorf("notification.slack.channel_id expected to match regex: `%s`, received: 'invalid&ChannelID'", slackChannelID.String()),
+				),
+			),
+		},
+		{
+			name: "should return error when channel_id is empty",
+			config: &Config{
+				&System{
+					"info",
+				},
+				&Api{
+					&Server{
+						"127.0.0.256",
+						8080,
+					},
+					"/api",
+					[]string{"v1"},
+				},
+				&FaultDetectorConfig{
+					L1RPCEndpoint:                 "https://xyz.com",
+					L2RPCEndpoint:                 "htps://xyz.com",
+					Startbatchindex:               100,
+					L2OutputOracleContractAddress: "xx0000000000000000000000000000000000000000",
+				},
+				&Notification{
+					&SlackConfig{
+						"",
+					},
+					true,
+				},
+			},
+			want: formatError(
+				multierr.Combine(
+					fmt.Errorf(
+						"api.server.host expected to match regex: `%v`, received: '%v'",
+						hostRegex.String(),
+						"127.0.0.256",
+					),
+					fmt.Errorf("faultdetector.l2_rpc_endpoint expected to match regex: `%s`, received: 'htps://xyz.com'", providerEndpointRegex.String()),
+					fmt.Errorf("faultdetector.l2_output_oracle_contract_address expected to match regex: `%s`, received: 'xx0000000000000000000000000000000000000000'", addressRegex.String()),
+					fmt.Errorf("notification.slack.channel_id expected to match regex: `%s`, received: ''", slackChannelID.String()),
 				),
 			),
 		},

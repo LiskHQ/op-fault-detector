@@ -18,6 +18,7 @@ import (
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
+	"github.com/LiskHQ/op-fault-detector/pkg/utils/notification"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -33,6 +34,7 @@ type App struct {
 	wg            *sync.WaitGroup
 	apiServer     *api.HTTPServer
 	faultDetector *faultdetector.FaultDetector
+	notification  *notification.Notification
 }
 
 // NewApp returns [App] with all the initialized services and variables.
@@ -55,6 +57,20 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 	wg := sync.WaitGroup{}
 	errorChan := make(chan error, 1)
 
+	// Initialize notification service
+	var notificationChannel *notification.Notification
+	if config.Notification.Enable {
+		notificationChannel, err = notification.NewNotification(
+			ctx,
+			logger,
+			config.Notification,
+		)
+		if err != nil {
+			logger.Errorf("Failed to initialize notification service, error: %w", err)
+			return nil, err
+		}
+	}
+
 	// Start Fault Detector
 	faultDetector, err := faultdetector.NewFaultDetector(
 		ctx,
@@ -63,6 +79,7 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 		&wg,
 		config.FaultDetectorConfig,
 		reg,
+		notificationChannel,
 	)
 
 	if err != nil {
@@ -84,6 +101,7 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 		wg:            &wg,
 		apiServer:     apiServer,
 		faultDetector: faultDetector,
+		notification:  notificationChannel,
 	}, nil
 }
 
@@ -116,6 +134,11 @@ func (app *App) Start() {
 
 		case err := <-app.errChan:
 			app.logger.Errorf("Received error of %v", err)
+			if app.notification != nil {
+				if err := app.notification.Notify("Error while starting application"); err != nil {
+					app.logger.Errorf("Failed to send notification, error: %w", err)
+				}
+			}
 			return
 		}
 	}
