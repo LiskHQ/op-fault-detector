@@ -21,6 +21,6 @@ fault_detector:
 
 # Notification service related configurations
 notification:
-  enable: true
+  enable: false
   slack:
     channel_id: ""

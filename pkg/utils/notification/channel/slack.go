@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
@@ -42,12 +45,19 @@ func (s *Slack) Notify(msg string) error {
 		s.ChannelID,
 		slack.MsgOptionText(msg, false),
 	)
-
 	if err != nil {
 		s.logger.Errorf("Failed to send notification to the channel %s, error: %w", s.ChannelID, err)
 		return err
 	}
 
-	s.logger.Infof("Message successfully sent to the channel %s at %s", s.ChannelID, timestamp)
+	parts := strings.Split(timestamp, ".")
+
+	timeInMS, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return err
+	}
+	localTime := time.UnixMilli(timeInMS * int64(time.Microsecond)).Local()
+
+	s.logger.Infof("Message successfully sent to the channel %s at %s", s.ChannelID, localTime.String())
 	return nil
 }
