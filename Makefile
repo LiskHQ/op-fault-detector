@@ -9,8 +9,13 @@ COLOR_END = \033[0;39m
 
 build: # Builds the application and create a binary at ./bin/
 	@echo "$(BLUE)» Building fault detector application binary... $(COLOR_END)"
-	@CGO_ENABLED=0 go build -a -o bin/$(APP_NAME) ./cmd/
+	@CGO_ENABLED=0 go build -a -o bin/$(APP_NAME) ./cmd/...
 	@echo "$(GREEN) Binary successfully built$(COLOR_END)"
+
+install: # Installs faultdetector cmd and creates executable at $GOPATH/bin/
+	@echo "$(BLUE)» Installing fault detector command... $(COLOR_END)"
+	@CGO_ENABLED=0 go install ./cmd/$(APP_NAME)
+	@echo "$(GREEN) $(APP_NAME) successfully installed$(COLOR_END)"
 
 run-app: # Runs the application, use `make run-app config={PATH_TO_CONFIG_FILE}` to provide custom config
 ifdef config

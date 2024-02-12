@@ -18,17 +18,39 @@ In the application, we take the state root of the given block as reported by an 
 
 ```
 git clone https://github.com/liskhq/op-fault-detector
-make build
+make install
 ```
 
 ## Running Fault Detector
 
-Copy `config.yaml` file and use any name with `.yaml` extension or edit existing `config.yaml` file to set configuration for the application.
+Copy `config.yaml` file at the root path and use any name with `.yaml` extension or edit existing `config.yaml` file to set configuration for the application.
+
+To run with default config,
+
+```sh
+faultdetector
+```
+
+To run with custom config file,
+
+```sh
+faultdetector --config /PATH/TO/YOUR/CUSTOM/CONFIG
+```
+
+### To build and run from source code
+
+#### Build
+
+```
+make build
+```
+
+#### Run
 
 ```
 make run-app
 ```
-if want to provide custom file, for example, `my-config.yaml`, run,
+if want to provide custom config file, for example, `my-config.yaml`, run,
 
 ```
 make run-app config=/path/to/my-config.yaml
