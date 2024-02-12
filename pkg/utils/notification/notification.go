@@ -15,19 +15,18 @@ type Notification struct {
 
 // NewNotification will return [Notification] with the initialized channel information.
 func NewNotification(ctx context.Context, logger log.Logger, notificationConfig *config.Notification) (*Notification, error) {
-	var slackClient *slack.Slack
+	newNotification := &Notification{}
+
 	if notificationConfig.Slack != nil {
 		client, err := slack.NewClient(ctx, logger, notificationConfig.Slack)
 		if err != nil {
 			return nil, err
 		} else {
-			slackClient = client
+			newNotification.slack = client
 		}
 	}
 
-	return &Notification{
-		slack: slackClient,
-	}, nil
+	return newNotification, nil
 }
 
 // Notify sends a message to the available channels.
