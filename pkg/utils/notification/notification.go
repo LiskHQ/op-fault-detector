@@ -6,6 +6,7 @@ import (
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	slack "github.com/LiskHQ/op-fault-detector/pkg/utils/notification/channel"
+	"go.uber.org/multierr"
 )
 
 // Notification holds information on all the supported channels require to communicate with the channel API.
@@ -29,15 +30,15 @@ func NewNotification(ctx context.Context, logger log.Logger, notificationConfig 
 	return newNotification, nil
 }
 
-// Notify sends a message to the available channels.
-func (n *Notification) Notify(msg string) *[]error {
-	var errors []error
+// Notify sends a message to the available channels and returns combined error from different channels if any.
+func (n *Notification) Notify(msg string) error {
+	var combinedError error
 
 	if n.slack != nil {
 		if err := n.slack.Notify(msg); err != nil {
-			errors = append(errors, err)
+			combinedError = multierr.Append(combinedError, err)
 		}
 	}
 
-	return &errors
+	return combinedError
 }

@@ -84,6 +84,15 @@ test: Runs tests
 
 The configuration file is used to configure the application. Currently, the default configuration is found under `./config.yaml`. To provide custom config, edit the `./config.yaml` or create own and provide it while running the application `make run-app config={PATH_TO_CUSTOM_CONFIG_FILE}`.
 
+**Config paths:**
+
+Config file can be placed in any of the paths below and will be read without giving `--config` flag,
+- `.`
+- `..`
+- `$HOME/.op-fault-detector`
+
+Below is the default config file,
+
 ```yaml
 # General system configurations
 system:

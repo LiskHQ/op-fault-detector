@@ -3,7 +3,6 @@ package faultdetector
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -252,8 +251,8 @@ func (fd *FaultDetector) checkFault() error {
 
 		if fd.notification != nil {
 			notificationMessage := fmt.Sprintf("*Fault detected*, state root does not match:\noutputIndex: %d\nExpectedStateRoot: %s\nCalculatedStateRoot: %s\nFinalizationTime: %s", fd.currentOutputIndex, expectedOutputRoot, calculatedOutputRoot, finalizationTime)
-			if err := fd.notification.Notify(notificationMessage); len(*err) != 0 {
-				fd.logger.Errorf("Error while sending notification, error: %w", errors.Join(*err...).Error())
+			if err := fd.notification.Notify(notificationMessage); err != nil {
+				fd.logger.Errorf("Error while sending notification, %w", err)
 			}
 		}
 
