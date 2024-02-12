@@ -252,7 +252,7 @@ func (fd *FaultDetector) checkFault() error {
 		if fd.notification != nil {
 			notificationMessage := fmt.Sprintf("*Fault detected*, state root does not match:\noutputIndex: %d\nExpectedStateRoot: %s\nCalculatedStateRoot: %s\nFinalizationTime: %s", fd.currentOutputIndex, expectedOutputRoot, calculatedOutputRoot, finalizationTime)
 			if err := fd.notification.Notify(notificationMessage); err != nil {
-				fd.logger.Errorf("Error while sending notification, error: %w", err)
+				fd.logger.Errorf("Error while sending notification, %w", err)
 			}
 		}
 

@@ -86,7 +86,11 @@ func (c *Config) Validate() error {
 	sysConfigError := c.System.Validate()
 	apiConfigError := c.Api.Validate()
 	fdConfigError := c.FaultDetectorConfig.Validate()
-	notificationConfigError := c.Notification.Validate()
+	// Validate notification config only when it is enabled
+	var notificationConfigError error
+	if c.Notification.Enable {
+		notificationConfigError = c.Notification.Validate()
+	}
 
 	validationErrors = multierr.Combine(sysConfigError, apiConfigError, fdConfigError, notificationConfigError)
 
