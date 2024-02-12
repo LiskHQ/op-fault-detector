@@ -61,9 +61,11 @@ View all available commands by running `make help` and view the commands with op
 ```sh
 build: Builds the application and create a binary at ./bin/
 
+install: Installs faultdetector cmd and creates executable at $GOPATH/bin/
+
 docker-build: Builds docker image
 
-docker-run: Runs docker image, use `make docker-run config={PATH_TO_CONFIG_FILE}` to provide custom config
+docker-run: Runs docker image, use `make docker-run config={PATH_TO_CONFIG_FILE}` to provide custom config and to provide slack access token use `make docker-run slack_access_token={ACCESS_TOKEN}`
 
 format: Runs gofmt on the repo
 
@@ -135,3 +137,32 @@ fault_detector:
 - fault_detector_is_state_mismatch         prometheus.Gauge     0 if state is ok, 1 if state is mismatched
 - fault_detector_api_connection_failure    prometheus.Gauge     Number of API RPC calls failed for L1 and L2 nodes
 ```
+
+## Notification Service
+
+When the state root for the proposed batch index on `L2OutputOracle` doesn't match the local view, user can also get notifications on [Slack](https://slack.com/).
+This is an optional feature that can be enabled by following steps,
+- Set configuration as below,
+
+```yaml
+notification:
+  enable: true
+  slack:
+    channel_id: "YOUR_CHANNEL_ID"
+```
+
+`channel_id` can be found on Slack, reference [Locate your Slack URL or ID](https://slack.com/intl/en-gb/help/articles/221769328-Locate-your-Slack-URL-or-ID).
+
+- Set environment variable `SLACK_ACCESS_TOKEN_KEY`, 
+
+```sh
+export SLACK_ACCESS_TOKEN_KEY="{SLACK_ACCESS_TOKEN}"
+```
+
+[Access token](https://api.slack.com/authentication/token-types) for Slack can be found in Slack application, reference [How to quickly get and use a Slack API token](https://api.slack.com/tutorials/tracks/getting-a-token).
+
+- Run app `faultdetector` or `faultdetector --config /PATH/TO/CUSTOM/CONFIG/FILE`
+
+To run notification service with docker.
+
+- Run `make docker-run config={/PATH/TO/CUSTOM/CONFIG/FILE} slack_access_token={ACCESS_TOKEN}`
