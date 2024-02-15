@@ -12,16 +12,19 @@ import (
 
 	"github.com/LiskHQ/op-fault-detector/pkg/api"
 	v1 "github.com/LiskHQ/op-fault-detector/pkg/api/handlers/v1"
+	"github.com/LiskHQ/op-fault-detector/pkg/chain"
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/LiskHQ/op-fault-detector/pkg/utils/notification"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	promClient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 const (
@@ -29,14 +32,25 @@ const (
 	port = 8080
 )
 
-// type mockChainAPIClient struct {
-// 	mock.Mock
-// }
+type mockChainAPIClient struct {
+	mock.Mock
+}
 
-// func (m *mockChainAPIClient) GetLatestBlockHeader(ctx context.Context) (*types.Header, error) {
-// 	called := m.MethodCalled("GetLatestBlockHeader", ctx)
-// 	return called.Get(0).(*types.Header), called.Error(1)
-// }
+func (m *mockChainAPIClient) GetBlockHeaderByNumber(ctx context.Context) (*types.Header, error) {
+	called := m.MethodCalled("GetBlockHeaderByNumber", ctx)
+	return called.Get(0).(*types.Header), called.Error(1)
+}
+
+func (c *mockChainAPIClient) BlockNumber(ctx context.Context) (uint64, error) {
+	ret := c.Called(ctx)
+
+	return ret.Get(0).(uint64), ret.Error(1)
+}
+
+func (m *mockChainAPIClient) GetProof(ctx context.Context) (*chain.ProofResponse, error) {
+	called := m.MethodCalled("GetProof", ctx)
+	return called.Get(0).(*chain.ProofResponse), called.Error(1)
+}
 
 func prepareHTTPServer(t *testing.T, ctx context.Context, logger log.Logger, wg *sync.WaitGroup, erroChan chan error) *api.HTTPServer {
 	router := gin.Default()
@@ -54,32 +68,31 @@ func prepareHTTPServer(t *testing.T, ctx context.Context, logger log.Logger, wg 
 	}
 }
 
-func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, reg *prometheus.Registry, config *config.Config, wg *sync.WaitGroup, erroChan chan error, valid bool) *faultdetector.FaultDetector {
+func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, reg *prometheus.Registry, config *config.Config, wg *sync.WaitGroup, erroChan chan error, mock bool) *faultdetector.FaultDetector {
 	var fd *faultdetector.FaultDetector
-	if valid {
+	if !mock {
 		fd, _ = faultdetector.NewFaultDetector(ctx, logger, erroChan, wg, config.FaultDetectorConfig, reg, &notification.Notification{})
 	} else {
-		// TODO: Mock chains API
-		// l1RpcApi, _ := chain.GetAPIClient(ctx, "https://rpc.notadegen.com/eth", logger)
-		// var l2RpcApi = new(mockChainAPIClient)
+		// TODO: Mock chains APIs
+		l1RpcApi, _ := chain.GetAPIClient(ctx, "https://rpc.notadegen.com/eth", logger)
+		l2RpcApi := new(mockChainAPIClient)
 
-		// fd = &faultdetector.FaultDetector{
-		// 	Ctx:                    ctx,
-		// 	Logger:                 logger,
-		// 	ErrorChan:              erroChan,
-		// 	Wg:                     wg,
-		// 	Metrics:                &faultdetector.FaultDetectorMetrics{},
-		// 	L1RpcApi:               l1RpcApi,
-		// 	L2RpcApi:               l2RpcApi,
-		// 	OracleContractAccessor: &chain.OracleAccessor{},
-		// 	FaultProofWindow:       60480,
-		// 	CurrentOutputIndex:     1,
-		// 	Diverged:               false,
-		// 	Ticker:                 time.NewTicker(2 * time.Second),
-		// 	QuitTickerChan:         make(chan struct{}),
-		// 	Notification:           &notification.Notification{},
-		// }
-		fd = &faultdetector.FaultDetector{}
+		fd = &faultdetector.FaultDetector{
+			Ctx:                    ctx,
+			Logger:                 logger,
+			ErrorChan:              erroChan,
+			Wg:                     wg,
+			Metrics:                &faultdetector.FaultDetectorMetrics{},
+			L1RpcApi:               l1RpcApi,
+			L2RpcApi:               l2RpcApi,
+			OracleContractAccessor: &chain.OracleAccessor{},
+			FaultProofWindow:       60480,
+			CurrentOutputIndex:     1,
+			Diverged:               false,
+			Ticker:                 time.NewTicker(2 * time.Second),
+			QuitTickerChan:         make(chan struct{}),
+			Notification:           &notification.Notification{},
+		}
 	}
 
 	return fd
@@ -136,7 +149,7 @@ func parseMetricRes(input *strings.Reader) []map[string]map[string]interface{} {
 	return parsedOutput
 }
 
-func TestApp_Start(t *testing.T) {
+func TestMain_E2E(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	ctx := context.Background()
@@ -147,18 +160,20 @@ func TestApp_Start(t *testing.T) {
 	registry := prometheus.NewRegistry()
 	testConfig := prepareConfig(&testing.T{})
 	testServer := prepareHTTPServer(&testing.T{}, ctx, logger, &wg, erroChan)
-	testFaultDetector := prepareFaultDetector(&testing.T{}, ctx, logger, registry, testConfig, &wg, erroChan, true)
+	testFaultDetector := prepareFaultDetector(&testing.T{}, ctx, logger, registry, testConfig, &wg, erroChan, false)
+	testFaultDetectorMocked := prepareFaultDetector(&testing.T{}, ctx, logger, registry, testConfig, &wg, erroChan, true)
 
 	// Register handler
 	testServer.Router.GET("/status", v1.GetStatus)
 	testServer.RegisterHandler("GET", "/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: registry, ProcessStartTime: time.Now()}))
 
 	tests := []struct {
-		name string
-		App  App
+		name      string
+		App       App
+		assertion func(float64, error)
 	}{
 		{
-			name: "should start application without any issue",
+			name: "should start application with no faults detected",
 			App: App{
 				ctx:           ctx,
 				logger:        logger,
@@ -168,6 +183,27 @@ func TestApp_Start(t *testing.T) {
 				faultDetector: testFaultDetector,
 				notification:  &notification.Notification{},
 				wg:            &wg,
+			},
+			assertion: func(isStateMismatch float64, err error) {
+				var expected float64 = 0
+				assert.Equal(t, isStateMismatch, expected)
+			},
+		},
+		{
+			name: "should start application with faults detected",
+			App: App{
+				ctx:           ctx,
+				logger:        logger,
+				errChan:       erroChan,
+				config:        testConfig,
+				apiServer:     testServer,
+				faultDetector: testFaultDetectorMocked,
+				notification:  &notification.Notification{},
+				wg:            &wg,
+			},
+			assertion: func(isStateMismatch float64, err error) {
+				var expected float64 = 1
+				assert.Equal(t, isStateMismatch, expected)
 			},
 		},
 	}
@@ -199,12 +235,11 @@ func TestApp_Start(t *testing.T) {
 				assert.NoError(t, err)
 				body, err := io.ReadAll(res.Body)
 				assert.NoError(t, err)
-				stringBody := string(body)
-				parsedMetric := parseMetricRes(strings.NewReader(stringBody))
+				parsedMetric := parseMetricRes(strings.NewReader(string(body)))
 				for _, m := range parsedMetric {
 					if m["fault_detector_is_state_mismatch"] != nil {
-						expectedOutput := float64(0)
-						assert.Equal(t, m["fault_detector_is_state_mismatch"]["value"], expectedOutput)
+						isStateMismatch := m["fault_detector_is_state_mismatch"]["value"].(float64)
+						tt.assertion(isStateMismatch, nil)
 					}
 				}
 
@@ -213,7 +248,6 @@ func TestApp_Start(t *testing.T) {
 			})
 
 			wg.Add(1)
-
 			go func() {
 				app.Start()
 			}()
