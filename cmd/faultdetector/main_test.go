@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	crand "crypto/rand"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"strings"
 	"sync"
@@ -17,7 +19,7 @@ import (
 	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/LiskHQ/op-fault-detector/pkg/utils/notification"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -32,24 +34,18 @@ const (
 	port = 8080
 )
 
-type mockChainAPIClient struct {
+type mockOracleAccessor struct {
 	mock.Mock
 }
 
-func (m *mockChainAPIClient) GetBlockHeaderByNumber(ctx context.Context) (*types.Header, error) {
-	called := m.MethodCalled("GetBlockHeaderByNumber", ctx)
-	return called.Get(0).(*types.Header), called.Error(1)
+func (o *mockOracleAccessor) GetNextOutputIndex() (*big.Int, error) {
+	called := o.MethodCalled("GetNextOutputIndex")
+	return called.Get(0).(*big.Int), called.Error(1)
 }
 
-func (c *mockChainAPIClient) BlockNumber(ctx context.Context) (uint64, error) {
-	ret := c.Called(ctx)
-
-	return ret.Get(0).(uint64), ret.Error(1)
-}
-
-func (m *mockChainAPIClient) GetProof(ctx context.Context) (*chain.ProofResponse, error) {
-	called := m.MethodCalled("GetProof", ctx)
-	return called.Get(0).(*chain.ProofResponse), called.Error(1)
+func (o *mockOracleAccessor) GetL2Output(index *big.Int) (chain.L2Output, error) {
+	called := o.MethodCalled("GetL2Output", index)
+	return called.Get(0).(chain.L2Output), called.Error(1)
 }
 
 func prepareHTTPServer(t *testing.T, ctx context.Context, logger log.Logger, wg *sync.WaitGroup, erroChan chan error) *api.HTTPServer {
@@ -68,24 +64,45 @@ func prepareHTTPServer(t *testing.T, ctx context.Context, logger log.Logger, wg 
 	}
 }
 
+func randHash() (out common.Hash) {
+	_, _ = crand.Read(out[:])
+	return out
+}
+
 func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, reg *prometheus.Registry, config *config.Config, wg *sync.WaitGroup, erroChan chan error, mock bool) *faultdetector.FaultDetector {
 	var fd *faultdetector.FaultDetector
 	if !mock {
 		fd, _ = faultdetector.NewFaultDetector(ctx, logger, erroChan, wg, config.FaultDetectorConfig, reg, &notification.Notification{})
 	} else {
-		// TODO: Mock chains APIs
 		l1RpcApi, _ := chain.GetAPIClient(ctx, "https://rpc.notadegen.com/eth", logger)
-		l2RpcApi := new(mockChainAPIClient)
+		l2RpcApi, _ := chain.GetAPIClient(ctx, "https://mainnet.optimism.io/", logger)
+
+		var oracle *mockOracleAccessor = new(mockOracleAccessor)
+		const defaultL1Timestamp uint64 = 123456
+		oracle.On("GetNextOutputIndex").Return(big.NewInt(2), nil)
+		oracle.On("GetL2Output", big.NewInt(0)).Return(chain.L2Output{
+			OutputRoot:    randHash().String(),
+			L1Timestamp:   defaultL1Timestamp - 1,
+			L2BlockNumber: 115905463,
+			L2OutputIndex: 2,
+		}, nil)
+		oracle.On("GetL2Output", big.NewInt(1)).Return(chain.L2Output{
+			OutputRoot:    randHash().String(),
+			L1Timestamp:   defaultL1Timestamp + 1,
+			L2BlockNumber: 115905463,
+			L2OutputIndex: 2,
+		}, nil)
+		metrics := faultdetector.NewFaultDetectorMetrics(reg)
 
 		fd = &faultdetector.FaultDetector{
 			Ctx:                    ctx,
 			Logger:                 logger,
 			ErrorChan:              erroChan,
 			Wg:                     wg,
-			Metrics:                &faultdetector.FaultDetectorMetrics{},
+			Metrics:                metrics,
 			L1RpcApi:               l1RpcApi,
 			L2RpcApi:               l2RpcApi,
-			OracleContractAccessor: &chain.OracleAccessor{},
+			OracleContractAccessor: oracle,
 			FaultProofWindow:       60480,
 			CurrentOutputIndex:     1,
 			Diverged:               false,
@@ -207,6 +224,7 @@ func TestMain_E2E(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := &App{
