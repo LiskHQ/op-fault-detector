@@ -37,6 +37,11 @@ func (o *mockOracleAccessor) GetL2Output(index *big.Int) (chain.L2Output, error)
 	return called.Get(0).(chain.L2Output), called.Error(1)
 }
 
+func (o *mockOracleAccessor) FinalizationPeriodSeconds() (*big.Int, error) {
+	called := o.MethodCalled("FinalizationPeriodSeconds")
+	return called.Get(0).(*big.Int), called.Error(1)
+}
+
 func randHash() (out common.Hash) {
 	_, _ = crand.Read(out[:])
 	return out

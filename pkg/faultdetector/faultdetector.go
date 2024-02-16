@@ -27,7 +27,7 @@ type FaultDetector struct {
 	Logger                 log.Logger
 	ErrorChan              chan error
 	Wg                     *sync.WaitGroup
-	Metrics                *FaultDetectorMetrics
+	Metrics                *faultDetectorMetrics
 	L1RpcApi               *chain.ChainAPIClient
 	L2RpcApi               *chain.ChainAPIClient
 	OracleContractAccessor OracleAccessor
@@ -39,15 +39,15 @@ type FaultDetector struct {
 	Notification           *notification.Notification
 }
 
-type FaultDetectorMetrics struct {
+type faultDetectorMetrics struct {
 	highestOutputIndex   prometheus.Gauge
 	stateMismatch        prometheus.Gauge
 	apiConnectionFailure prometheus.Gauge
 }
 
 // NewFaultDetectorMetrics returns [FaultDetectorMetrics] with initialized metrics and registering to prometheus registry.
-func NewFaultDetectorMetrics(reg prometheus.Registerer) *FaultDetectorMetrics {
-	m := &FaultDetectorMetrics{
+func NewFaultDetectorMetrics(reg prometheus.Registerer) *faultDetectorMetrics {
+	m := &faultDetectorMetrics{
 		highestOutputIndex: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Name: "fault_detector_highest_output_index",
@@ -168,7 +168,7 @@ func (fd *FaultDetector) Start() {
 	for {
 		select {
 		case <-fd.Ticker.C:
-			if err := fd.checkFault(fd.OracleContractAccessor); err != nil {
+			if err := fd.checkFault(); err != nil {
 				time.Sleep(waitTimeInFailure * time.Second)
 			}
 		case <-fd.QuitTickerChan:
@@ -186,11 +186,11 @@ func (fd *FaultDetector) Stop() {
 }
 
 // checkFault continuously checks for the faults at regular interval.
-func (fd *FaultDetector) checkFault(oracleContractAccessor OracleAccessor) error {
+func (fd *FaultDetector) checkFault() error {
 	startTime := time.Now()
 	fd.Logger.Infof("Checking current batch with output index: %d.", fd.CurrentOutputIndex)
 
-	nextOutputIndex, err := oracleContractAccessor.GetNextOutputIndex()
+	nextOutputIndex, err := fd.OracleContractAccessor.GetNextOutputIndex()
 	if err != nil {
 		fd.Logger.Errorf("Failed to query next output index, error: %w.", err)
 		fd.Metrics.apiConnectionFailure.Inc()
@@ -204,7 +204,7 @@ func (fd *FaultDetector) checkFault(oracleContractAccessor OracleAccessor) error
 		return fmt.Errorf("current output index is ahead of the oracle latest batch index")
 	}
 
-	l2OutputData, err := oracleContractAccessor.GetL2Output(encoding.MustConvertUint64ToBigInt(fd.CurrentOutputIndex))
+	l2OutputData, err := fd.OracleContractAccessor.GetL2Output(encoding.MustConvertUint64ToBigInt(fd.CurrentOutputIndex))
 	if err != nil {
 		fd.Logger.Errorf("Failed to fetch output associated with index: %d, error: %w.", fd.CurrentOutputIndex, err)
 		fd.Metrics.apiConnectionFailure.Inc()
