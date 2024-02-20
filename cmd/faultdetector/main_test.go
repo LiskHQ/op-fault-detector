@@ -116,6 +116,8 @@ func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, 
 		l1RpcApi, _ := chain.GetAPIClient(ctx, l1RpcApi, logger)
 		l2RpcApi, _ := chain.GetAPIClient(ctx, l2RpcApi, logger)
 
+		latestL2BlockNumber, _ := l2RpcApi.GetLatestBlockNumber(ctx)
+
 		// Mock oracle conmtract accessor
 		var oracle *mockContractOracleAccessor = new(mockContractOracleAccessor)
 		oracle.On("GetNextOutputIndex").Return(big.NewInt(2), nil)
@@ -123,13 +125,13 @@ func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, 
 		oracle.On("GetL2Output", big.NewInt(0)).Return(chain.L2Output{
 			OutputRoot:    randHash().String(),
 			L1Timestamp:   1000000,
-			L2BlockNumber: 116216402, //TODO: make it dynamic
+			L2BlockNumber: latestL2BlockNumber,
 			L2OutputIndex: 2,
 		}, nil)
 		oracle.On("GetL2Output", big.NewInt(1)).Return(chain.L2Output{
 			OutputRoot:    randHash().String(),
 			L1Timestamp:   1000000,
-			L2BlockNumber: 116216402, //TODO: make it dynamic
+			L2BlockNumber: latestL2BlockNumber,
 			L2OutputIndex: 2,
 		}, nil)
 
