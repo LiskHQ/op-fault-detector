@@ -11,7 +11,7 @@ import (
 
 // Notification holds information on all the supported channels require to communicate with the channel API.
 type Notification struct {
-	Slack *slack.Slack
+	slack *slack.Slack
 }
 
 // NewNotification will return [Notification] with the initialized channel information.
@@ -23,7 +23,7 @@ func NewNotification(ctx context.Context, logger log.Logger, notificationConfig 
 		if err != nil {
 			return nil, err
 		} else {
-			newNotification.Slack = client
+			newNotification.slack = client
 		}
 	}
 
@@ -34,11 +34,17 @@ func NewNotification(ctx context.Context, logger log.Logger, notificationConfig 
 func (n *Notification) Notify(msg string) error {
 	var combinedError error
 
-	if n.Slack != nil {
-		if err := n.Slack.Notify(msg); err != nil {
+	if n.slack != nil {
+		if err := n.slack.Notify(msg); err != nil {
 			combinedError = multierr.Append(combinedError, err)
 		}
 	}
 
 	return combinedError
+}
+
+func GetNotification(ctx context.Context, logger log.Logger, client slack.SlackClient, notificationConfig *config.Notification) *Notification {
+	return &Notification{
+		slack: slack.GetSlackClient(ctx, logger, client, notificationConfig.Slack),
+	}
 }

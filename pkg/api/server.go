@@ -17,37 +17,37 @@ import (
 
 // HTTPServer embeds the http.Server along with the various other properties.
 type HTTPServer struct {
-	Server    *http.Server
-	Router    *gin.Engine
-	Ctx       context.Context
-	Logger    log.Logger
-	Wg        *sync.WaitGroup
-	ErrorChan chan error
+	server    *http.Server
+	router    *gin.Engine
+	ctx       context.Context
+	logger    log.Logger
+	wg        *sync.WaitGroup
+	errorChan chan error
 }
 
 // Start starts the HTTP API server.
 func (w *HTTPServer) Start() {
-	defer w.Wg.Done()
+	defer w.wg.Done()
 
-	w.Logger.Infof("Starting the HTTP server on %s.", w.Server.Addr)
-	err := w.Server.ListenAndServe()
+	w.logger.Infof("Starting the HTTP server on %s.", w.server.Addr)
+	err := w.server.ListenAndServe()
 	if err != nil {
-		w.ErrorChan <- err
+		w.errorChan <- err
 	}
 }
 
 // Stop gracefully shuts down the HTTP API server.
 func (w *HTTPServer) Stop() error {
-	err := w.Server.Shutdown(w.Ctx)
+	err := w.server.Shutdown(w.ctx)
 	if err == nil {
-		w.Logger.Infof("Successfully stopped the HTTP server.")
+		w.logger.Infof("Successfully stopped the HTTP server.")
 	}
 
 	return err
 }
 
 func (w *HTTPServer) RegisterHandler(httpMethod string, relativePath string, h http.Handler) {
-	w.Router.Handle(httpMethod, relativePath, gin.WrapH(h))
+	w.router.Handle(httpMethod, relativePath, gin.WrapH(h))
 }
 
 func getGinModeFromSysLogLevel(sysLogLevel string) string {

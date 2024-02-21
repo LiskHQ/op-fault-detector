@@ -14,17 +14,14 @@ import (
 	"time"
 
 	"github.com/LiskHQ/op-fault-detector/pkg/api"
-	v1 "github.com/LiskHQ/op-fault-detector/pkg/api/handlers/v1"
 	"github.com/LiskHQ/op-fault-detector/pkg/chain"
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/LiskHQ/op-fault-detector/pkg/utils/notification"
-	slack "github.com/LiskHQ/op-fault-detector/pkg/utils/notification/channel"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	promClient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	slackClient "github.com/slack-go/slack"
@@ -79,39 +76,21 @@ func randHash() (out common.Hash) {
 	return out
 }
 
-func prepareHTTPServer(t *testing.T, ctx context.Context, logger log.Logger, wg *sync.WaitGroup, erroChan chan error) *api.HTTPServer {
-	router := gin.Default()
-	return &api.HTTPServer{
-		Server: &http.Server{
-			Addr:              fmt.Sprintf("%s:%d", host, port),
-			Handler:           router,
-			ReadHeaderTimeout: 10 * time.Second,
-		},
-		Router:    router,
-		Ctx:       ctx,
-		Logger:    logger,
-		Wg:        wg,
-		ErrorChan: erroChan,
-	}
+func prepareHTTPServer(t *testing.T, ctx context.Context, logger log.Logger, config *config.Config, wg *sync.WaitGroup, erroChan chan error) *api.HTTPServer {
+	testServer := api.NewHTTPServer(ctx, logger, wg, config, erroChan)
+	return testServer
 }
 
-func prepareNotification(t *testing.T, ctx context.Context, logger log.Logger) *notification.Notification {
+func prepareNotification(t *testing.T, ctx context.Context, logger log.Logger, config *config.Config) *notification.Notification {
 	slackNotificationClient.On("PostMessageContext").Return("TestChannelID", "1234569.1000", nil)
-
-	return &notification.Notification{
-		Slack: &slack.Slack{
-			Client:    slackNotificationClient,
-			ChannelID: "string",
-			Ctx:       ctx,
-			Logger:    logger,
-		},
-	}
+	testNotificationService := notification.GetNotification(ctx, logger, slackNotificationClient, config.Notification)
+	return testNotificationService
 }
 
-func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, wg *sync.WaitGroup, reg *prometheus.Registry, config *config.Config, erroChan chan error, mock bool) *faultdetector.FaultDetector {
+func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, testNotificationService *notification.Notification, wg *sync.WaitGroup, reg *prometheus.Registry, config *config.Config, erroChan chan error, mock bool) *faultdetector.FaultDetector {
 	var fd *faultdetector.FaultDetector
 	if !mock {
-		fd, _ = faultdetector.NewFaultDetector(ctx, logger, erroChan, wg, config.FaultDetectorConfig, reg, &notification.Notification{})
+		fd, _ = faultdetector.NewFaultDetector(ctx, logger, erroChan, wg, config.FaultDetectorConfig, reg, testNotificationService)
 	} else {
 		metrics := faultdetector.NewFaultDetectorMetrics(reg)
 
@@ -138,22 +117,7 @@ func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, 
 			L2OutputIndex: 2,
 		}, nil)
 
-		fd = &faultdetector.FaultDetector{
-			Ctx:                    ctx,
-			Logger:                 logger,
-			ErrorChan:              erroChan,
-			Wg:                     wg,
-			Metrics:                metrics,
-			L1RpcApi:               l1RpcApi,
-			L2RpcApi:               l2RpcApi,
-			OracleContractAccessor: oracle,
-			FaultProofWindow:       faultProofWindow,
-			CurrentOutputIndex:     currentOutputIndex,
-			Diverged:               false,
-			Ticker:                 time.NewTicker(2 * time.Second),
-			QuitTickerChan:         make(chan struct{}),
-			Notification:           &notification.Notification{},
-		}
+		fd = faultdetector.GetFaultDetector(ctx, logger, l1RpcApi, l2RpcApi, oracle, faultProofWindow, currentOutputIndex, metrics, testNotificationService, false, wg, erroChan)
 	}
 
 	return fd
@@ -182,6 +146,9 @@ func prepareConfig(t *testing.T) *config.Config {
 		},
 		Notification: &config.Notification{
 			Enable: true,
+			Slack: &config.SlackConfig{
+				ChannelID: "TestChannelID",
+			},
 		},
 	}
 }
@@ -249,13 +216,9 @@ func TestMain_E2E(t *testing.T) {
 			errorChan := make(chan error)
 			registry := prometheus.NewRegistry()
 			testConfig := prepareConfig(&testing.T{})
-			testServer := prepareHTTPServer(&testing.T{}, ctx, logger, &wg, errorChan)
-			testFaultDetector := prepareFaultDetector(&testing.T{}, ctx, logger, &wg, registry, testConfig, errorChan, tt.mock)
-			testNotificationService := prepareNotification(&testing.T{}, ctx, logger)
-
-			// Register handler
-			testServer.Router.GET("/status", v1.GetStatus)
-			testServer.RegisterHandler("GET", "/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: registry, ProcessStartTime: time.Now()}))
+			testServer := prepareHTTPServer(&testing.T{}, ctx, logger, testConfig, &wg, errorChan)
+			testNotificationService := prepareNotification(&testing.T{}, ctx, logger, testConfig)
+			testFaultDetector := prepareFaultDetector(&testing.T{}, ctx, logger, testNotificationService, &wg, registry, testConfig, errorChan, tt.mock)
 
 			app := &App{
 				ctx:           ctx,
@@ -269,7 +232,7 @@ func TestMain_E2E(t *testing.T) {
 			}
 
 			time.AfterFunc(5*time.Second, func() {
-				statusEndpoint := fmt.Sprintf("http://%s:%d/status", host, port)
+				statusEndpoint := fmt.Sprintf("http://%s:%d/api/v1/status", host, port)
 				req, err := http.NewRequest(http.MethodGet, statusEndpoint, nil)
 				assert.NoError(t, err)
 				res, err := client.Do(req)

@@ -23,20 +23,20 @@ const (
 
 // FaultDetector contains all the RPC providers/contract accessors and holds state information.
 type FaultDetector struct {
-	Ctx                    context.Context
-	Logger                 log.Logger
-	ErrorChan              chan error
-	Wg                     *sync.WaitGroup
-	Metrics                *faultDetectorMetrics
-	L1RpcApi               *chain.ChainAPIClient
-	L2RpcApi               *chain.ChainAPIClient
-	OracleContractAccessor OracleAccessor
-	FaultProofWindow       uint64
-	CurrentOutputIndex     uint64
-	Diverged               bool
-	Ticker                 *time.Ticker
-	QuitTickerChan         chan struct{}
-	Notification           *notification.Notification
+	ctx                    context.Context
+	logger                 log.Logger
+	errorChan              chan error
+	wg                     *sync.WaitGroup
+	metrics                *faultDetectorMetrics
+	l1RpcApi               *chain.ChainAPIClient
+	l2RpcApi               *chain.ChainAPIClient
+	oracleContractAccessor OracleAccessor
+	faultProofWindow       uint64
+	currentOutputIndex     uint64
+	diverged               bool
+	ticker                 *time.Ticker
+	quitTickerChan         chan struct{}
+	notification           *notification.Notification
 }
 
 type faultDetectorMetrics struct {
@@ -142,18 +142,18 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 	metrics.stateMismatch.Set(0)
 
 	faultDetector := &FaultDetector{
-		Ctx:                    ctx,
-		Logger:                 logger,
-		ErrorChan:              errorChan,
-		Wg:                     wg,
-		L1RpcApi:               l1RpcApi,
-		L2RpcApi:               l2RpcApi,
-		OracleContractAccessor: oracleContractAccessor,
-		FaultProofWindow:       finalizedPeriodSeconds.Uint64(),
-		CurrentOutputIndex:     currentOutputIndex,
-		Diverged:               false,
-		Metrics:                metrics,
-		Notification:           notification,
+		ctx:                    ctx,
+		logger:                 logger,
+		errorChan:              errorChan,
+		wg:                     wg,
+		l1RpcApi:               l1RpcApi,
+		l2RpcApi:               l2RpcApi,
+		oracleContractAccessor: oracleContractAccessor,
+		faultProofWindow:       finalizedPeriodSeconds.Uint64(),
+		currentOutputIndex:     currentOutputIndex,
+		diverged:               false,
+		metrics:                metrics,
+		notification:           notification,
 	}
 
 	return faultDetector, nil
@@ -161,18 +161,18 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 
 // Start will start the fault detector service by invoking the service every given interval.
 func (fd *FaultDetector) Start() {
-	defer fd.Wg.Done()
-	fd.Logger.Infof("Started fault detector service, checking for state root every %d seconds.", serviceIntervalInSeconds)
-	fd.Ticker = time.NewTicker(serviceIntervalInSeconds * time.Second)
-	fd.QuitTickerChan = make(chan struct{})
+	defer fd.wg.Done()
+	fd.logger.Infof("Started fault detector service, checking for state root every %d seconds.", serviceIntervalInSeconds)
+	fd.ticker = time.NewTicker(serviceIntervalInSeconds * time.Second)
+	fd.quitTickerChan = make(chan struct{})
 	for {
 		select {
-		case <-fd.Ticker.C:
+		case <-fd.ticker.C:
 			if err := fd.checkFault(); err != nil {
 				time.Sleep(waitTimeInFailure * time.Second)
 			}
-		case <-fd.QuitTickerChan:
-			fd.Logger.Infof("Quit ticker for periodic fault detection.")
+		case <-fd.quitTickerChan:
+			fd.logger.Infof("Quit ticker for periodic fault detection.")
 			return
 		}
 	}
@@ -180,62 +180,62 @@ func (fd *FaultDetector) Start() {
 
 // Stop will stop the ticker.
 func (fd *FaultDetector) Stop() {
-	fd.Ticker.Stop()
-	close(fd.QuitTickerChan)
-	fd.Logger.Infof("Successfully stopped fault detector service.")
+	fd.ticker.Stop()
+	close(fd.quitTickerChan)
+	fd.logger.Infof("Successfully stopped fault detector service.")
 }
 
 // checkFault continuously checks for the faults at regular interval.
 func (fd *FaultDetector) checkFault() error {
 	startTime := time.Now()
-	fd.Logger.Infof("Checking current batch with output index: %d.", fd.CurrentOutputIndex)
+	fd.logger.Infof("Checking current batch with output index: %d.", fd.currentOutputIndex)
 
-	nextOutputIndex, err := fd.OracleContractAccessor.GetNextOutputIndex()
+	nextOutputIndex, err := fd.oracleContractAccessor.GetNextOutputIndex()
 	if err != nil {
-		fd.Logger.Errorf("Failed to query next output index, error: %w.", err)
-		fd.Metrics.apiConnectionFailure.Inc()
+		fd.logger.Errorf("Failed to query next output index, error: %w.", err)
+		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
 
 	latestBatchIndex := encoding.MustConvertBigIntToUint64(nextOutputIndex) - 1
-	fd.Logger.Infof("Latest batch index is set to %d.", latestBatchIndex)
-	if fd.CurrentOutputIndex > latestBatchIndex {
-		fd.Logger.Infof("Current output index %d is ahead of the oracle latest batch index %d. Waiting...", fd.CurrentOutputIndex, latestBatchIndex)
+	fd.logger.Infof("Latest batch index is set to %d.", latestBatchIndex)
+	if fd.currentOutputIndex > latestBatchIndex {
+		fd.logger.Infof("Current output index %d is ahead of the oracle latest batch index %d. Waiting...", fd.currentOutputIndex, latestBatchIndex)
 		return fmt.Errorf("current output index is ahead of the oracle latest batch index")
 	}
 
-	l2OutputData, err := fd.OracleContractAccessor.GetL2Output(encoding.MustConvertUint64ToBigInt(fd.CurrentOutputIndex))
+	l2OutputData, err := fd.oracleContractAccessor.GetL2Output(encoding.MustConvertUint64ToBigInt(fd.currentOutputIndex))
 	if err != nil {
-		fd.Logger.Errorf("Failed to fetch output associated with index: %d, error: %w.", fd.CurrentOutputIndex, err)
-		fd.Metrics.apiConnectionFailure.Inc()
+		fd.logger.Errorf("Failed to fetch output associated with index: %d, error: %w.", fd.currentOutputIndex, err)
+		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
 
-	latestBlockNumber, err := fd.L2RpcApi.GetLatestBlockNumber(fd.Ctx)
+	latestBlockNumber, err := fd.l2RpcApi.GetLatestBlockNumber(fd.ctx)
 	if err != nil {
-		fd.Logger.Errorf("Failed to query L2 latest block number: %d, error: %w", latestBlockNumber, err)
-		fd.Metrics.apiConnectionFailure.Inc()
+		fd.logger.Errorf("Failed to query L2 latest block number: %d, error: %w", latestBlockNumber, err)
+		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
 
 	l2OutputBlockNumber := l2OutputData.L2BlockNumber
 	expectedOutputRoot := l2OutputData.OutputRoot
 	if latestBlockNumber < l2OutputBlockNumber {
-		fd.Logger.Infof("L2 node is behind, waiting for node to sync with the network...")
+		fd.logger.Infof("L2 node is behind, waiting for node to sync with the network...")
 		return fmt.Errorf("l2 node is behind")
 	}
 
-	outputBlockHeader, err := fd.L2RpcApi.GetBlockHeaderByNumber(fd.Ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber))
+	outputBlockHeader, err := fd.l2RpcApi.GetBlockHeaderByNumber(fd.ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber))
 	if err != nil {
-		fd.Logger.Errorf("Failed to fetch block header by number: %d, error: %w.", l2OutputBlockNumber, err)
-		fd.Metrics.apiConnectionFailure.Inc()
+		fd.logger.Errorf("Failed to fetch block header by number: %d, error: %w.", l2OutputBlockNumber, err)
+		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
 
-	messagePasserProofResponse, err := fd.L2RpcApi.GetProof(fd.Ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber), common.HexToAddress(chain.L2BedrockMessagePasserAddress))
+	messagePasserProofResponse, err := fd.l2RpcApi.GetProof(fd.ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber), common.HexToAddress(chain.L2BedrockMessagePasserAddress))
 	if err != nil {
-		fd.Logger.Errorf("Failed to fetch message passer proof for the block with height: %d and address: %s, error: %w.", l2OutputBlockNumber, chain.L2BedrockMessagePasserAddress, err)
-		fd.Metrics.apiConnectionFailure.Inc()
+		fd.logger.Errorf("Failed to fetch message passer proof for the block with height: %d and address: %s, error: %w.", l2OutputBlockNumber, chain.L2BedrockMessagePasserAddress, err)
+		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
 
@@ -245,28 +245,45 @@ func (fd *FaultDetector) checkFault() error {
 		outputBlockHeader.Hash(),
 	)
 	if calculatedOutputRoot != expectedOutputRoot {
-		fd.Diverged = true
-		fd.Metrics.stateMismatch.Set(1)
-		finalizationTime := time.Unix(int64(outputBlockHeader.Time+fd.FaultProofWindow), 0)
+		fd.diverged = true
+		fd.metrics.stateMismatch.Set(1)
+		finalizationTime := time.Unix(int64(outputBlockHeader.Time+fd.faultProofWindow), 0)
 
-		if fd.Notification != nil {
-			notificationMessage := fmt.Sprintf("*Fault detected*, state root does not match:\noutputIndex: %d\nExpectedStateRoot: %s\nCalculatedStateRoot: %s\nFinalizationTime: %s", fd.CurrentOutputIndex, expectedOutputRoot, calculatedOutputRoot, finalizationTime)
-			if err := fd.Notification.Notify(notificationMessage); err != nil {
-				fd.Logger.Errorf("Error while sending notification, %w", err)
+		if fd.notification != nil {
+			notificationMessage := fmt.Sprintf("*Fault detected*, state root does not match:\noutputIndex: %d\nExpectedStateRoot: %s\nCalculatedStateRoot: %s\nFinalizationTime: %s", fd.currentOutputIndex, expectedOutputRoot, calculatedOutputRoot, finalizationTime)
+			if err := fd.notification.Notify(notificationMessage); err != nil {
+				fd.logger.Errorf("Error while sending notification, %w", err)
 			}
 		}
 
-		fd.Logger.Errorf("State root does not match expectedStateRoot: %s, calculatedStateRoot: %s, finalizationTime: %s.", expectedOutputRoot, calculatedOutputRoot, finalizationTime)
+		fd.logger.Errorf("State root does not match expectedStateRoot: %s, calculatedStateRoot: %s, finalizationTime: %s.", expectedOutputRoot, calculatedOutputRoot, finalizationTime)
 		return nil
 	}
 
-	fd.Metrics.highestOutputIndex.Set(float64(fd.CurrentOutputIndex))
+	fd.metrics.highestOutputIndex.Set(float64(fd.currentOutputIndex))
 
 	// Time taken to execute each batch in milliseconds.
 	elapsedTime := time.Since(startTime).Milliseconds()
-	fd.Logger.Infof("Successfully checked current batch with index %d --> ok, time taken %dms.", fd.CurrentOutputIndex, elapsedTime)
-	fd.Diverged = false
-	fd.CurrentOutputIndex++
-	fd.Metrics.stateMismatch.Set(0)
+	fd.logger.Infof("Successfully checked current batch with index %d --> ok, time taken %dms.", fd.currentOutputIndex, elapsedTime)
+	fd.diverged = false
+	fd.currentOutputIndex++
+	fd.metrics.stateMismatch.Set(0)
 	return nil
+}
+
+func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.ChainAPIClient, l2RpcApi *chain.ChainAPIClient, oracleContractAccessor OracleAccessor, faultProofWindow uint64, currentOutputIndex uint64, metrics *faultDetectorMetrics, notification *notification.Notification, diverged bool, wg *sync.WaitGroup, errorChan chan error) *FaultDetector {
+	return &FaultDetector{
+		ctx:                    ctx,
+		logger:                 logger,
+		errorChan:              errorChan,
+		wg:                     wg,
+		l1RpcApi:               l1RpcApi,
+		l2RpcApi:               l2RpcApi,
+		oracleContractAccessor: oracleContractAccessor,
+		faultProofWindow:       faultProofWindow,
+		currentOutputIndex:     currentOutputIndex,
+		diverged:               false,
+		metrics:                metrics,
+		notification:           notification,
+	}
 }
