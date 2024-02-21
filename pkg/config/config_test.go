@@ -242,7 +242,7 @@ func TestValidate_FaultDetector(t *testing.T) {
 			config: &FaultDetectorConfig{
 				L1RPCEndpoint:                 "https://xyz.com",
 				L2RPCEndpoint:                 "http://xyz.com",
-				Startbatchindex:               100,
+				StartBatchIndex:               100,
 				L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 			},
 			want: nil,
@@ -252,7 +252,7 @@ func TestValidate_FaultDetector(t *testing.T) {
 			config: &FaultDetectorConfig{
 				L1RPCEndpoint:                 "wss://xyz.com",
 				L2RPCEndpoint:                 "ws://xyz.com",
-				Startbatchindex:               100,
+				StartBatchIndex:               100,
 				L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 			},
 			want: nil,
@@ -262,7 +262,7 @@ func TestValidate_FaultDetector(t *testing.T) {
 			config: &FaultDetectorConfig{
 				L1RPCEndpoint:                 "://xyz.com",
 				L2RPCEndpoint:                 "http://xyz.com",
-				Startbatchindex:               100,
+				StartBatchIndex:               100,
 				L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 			},
 			want: fmt.Errorf("faultdetector.l1_rpc_endpoint expected to match regex: `%s`, received: '://xyz.com'", providerEndpointRegex.String()),
@@ -272,7 +272,7 @@ func TestValidate_FaultDetector(t *testing.T) {
 			config: &FaultDetectorConfig{
 				L1RPCEndpoint:                 "http://xyz.com",
 				L2RPCEndpoint:                 "ht://xyz.com",
-				Startbatchindex:               100,
+				StartBatchIndex:               100,
 				L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 			},
 			want: fmt.Errorf("faultdetector.l2_rpc_endpoint expected to match regex: `%s`, received: 'ht://xyz.com'", providerEndpointRegex.String()),
@@ -282,7 +282,7 @@ func TestValidate_FaultDetector(t *testing.T) {
 			config: &FaultDetectorConfig{
 				L1RPCEndpoint:                 "http://xyz.com",
 				L2RPCEndpoint:                 "http://xyz.com",
-				Startbatchindex:               100,
+				StartBatchIndex:               100,
 				L2OutputOracleContractAddress: "randomAddress",
 			},
 			want: fmt.Errorf("faultdetector.l2_output_oracle_contract_address expected to match regex: `%s`, received: 'randomAddress'", addressRegex.String()),
@@ -292,7 +292,7 @@ func TestValidate_FaultDetector(t *testing.T) {
 			config: &FaultDetectorConfig{
 				L1RPCEndpoint:                 "http://xyz.com",
 				L2RPCEndpoint:                 "http://xyz.com",
-				Startbatchindex:               100,
+				StartBatchIndex:               100,
 				L2OutputOracleContractAddress: "xx0000000000000000000000000000000000000000",
 			},
 			want: fmt.Errorf("faultdetector.l2_output_oracle_contract_address expected to match regex: `%s`, received: 'xx0000000000000000000000000000000000000000'", addressRegex.String()),
@@ -379,7 +379,7 @@ func TestValidate_Config(t *testing.T) {
 				&FaultDetectorConfig{
 					L1RPCEndpoint:                 "https://xyz.com",
 					L2RPCEndpoint:                 "http://xyz.com",
-					Startbatchindex:               100,
+					StartBatchIndex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
 				&Notification{
@@ -408,7 +408,7 @@ func TestValidate_Config(t *testing.T) {
 				&FaultDetectorConfig{
 					L1RPCEndpoint:                 "https://xyz.com",
 					L2RPCEndpoint:                 "http://xyz.com",
-					Startbatchindex:               100,
+					StartBatchIndex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
 				&Notification{
@@ -439,7 +439,7 @@ func TestValidate_Config(t *testing.T) {
 				&FaultDetectorConfig{
 					L1RPCEndpoint:                 "https://xyz.com",
 					L2RPCEndpoint:                 "http://xyz.com",
-					Startbatchindex:               100,
+					StartBatchIndex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
 				&Notification{
@@ -479,7 +479,7 @@ func TestValidate_Config(t *testing.T) {
 				&FaultDetectorConfig{
 					L1RPCEndpoint:                 "htps://xyz.com",
 					L2RPCEndpoint:                 "http://xyz.com",
-					Startbatchindex:               100,
+					StartBatchIndex:               100,
 					L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 				},
 				&Notification{
@@ -517,7 +517,7 @@ func TestValidate_Config(t *testing.T) {
 				&FaultDetectorConfig{
 					L1RPCEndpoint:                 "https://xyz.com",
 					L2RPCEndpoint:                 "htps://xyz.com",
-					Startbatchindex:               100,
+					StartBatchIndex:               100,
 					L2OutputOracleContractAddress: "xx0000000000000000000000000000000000000000",
 				},
 				&Notification{
@@ -556,7 +556,7 @@ func TestValidate_Config(t *testing.T) {
 				&FaultDetectorConfig{
 					L1RPCEndpoint:                 "https://xyz.com",
 					L2RPCEndpoint:                 "htps://xyz.com",
-					Startbatchindex:               100,
+					StartBatchIndex:               100,
 					L2OutputOracleContractAddress: "xx0000000000000000000000000000000000000000",
 				},
 				&Notification{
@@ -596,7 +596,7 @@ func TestValidate_Config(t *testing.T) {
 				&FaultDetectorConfig{
 					L1RPCEndpoint:                 "https://xyz.com",
 					L2RPCEndpoint:                 "htps://xyz.com",
-					Startbatchindex:               100,
+					StartBatchIndex:               100,
 					L2OutputOracleContractAddress: "xx0000000000000000000000000000000000000000",
 				},
 				&Notification{

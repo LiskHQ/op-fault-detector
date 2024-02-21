@@ -33,13 +33,16 @@ import (
 )
 
 const (
-	host               = "0.0.0.0"
-	port               = 8080
-	faultProofWindow   = 1000
-	currentOutputIndex = 1
-	l1RpcApi           = "https://rpc.notadegen.com/eth"
-	l2RpcApi           = "https://mainnet.optimism.io/"
+	host                       = "127.0.0.1"
+	port                       = 8088
+	faultProofWindow           = 1000
+	currentOutputIndex         = 1
+	l1RpcApi                   = "https://rpc.notadegen.com/eth"
+	l2RpcApi                   = "https://mainnet.optimism.io/"
+	faultDetectorStateMismatch = "fault_detector_is_state_mismatch"
 )
+
+type parseMetric map[string]map[string]interface{}
 
 type mockContractOracleAccessor struct {
 	mock.Mock
@@ -174,7 +177,7 @@ func prepareConfig(t *testing.T) *config.Config {
 		FaultDetectorConfig: &config.FaultDetectorConfig{
 			L1RPCEndpoint:                 l1RpcApi,
 			L2RPCEndpoint:                 l2RpcApi,
-			Startbatchindex:               -1,
+			StartBatchIndex:               -1,
 			L2OutputOracleContractAddress: "0x0000000000000000000000000000000000000000",
 		},
 		Notification: &config.Notification{
@@ -183,25 +186,25 @@ func prepareConfig(t *testing.T) *config.Config {
 	}
 }
 
-func parseMetricRes(input *strings.Reader) []map[string]map[string]interface{} {
+func parseMetricRes(input *strings.Reader) []parseMetric {
 	parser := &expfmt.TextParser{}
 	metricFamilies, _ := parser.TextToMetricFamilies(input)
 
-	var parsedOutput []map[string]map[string]interface{}
-	for _, value := range metricFamilies {
-		for _, m := range value.GetMetric() {
+	var parsedOutput []parseMetric
+	for _, metricFamily := range metricFamilies {
+		for _, m := range metricFamily.GetMetric() {
 			metric := make(map[string]interface{})
 			for _, label := range m.GetLabel() {
 				metric[label.GetName()] = label.GetValue()
 			}
-			switch value.GetType() {
+			switch metricFamily.GetType() {
 			case promClient.MetricType_COUNTER:
 				metric["value"] = m.GetCounter().GetValue()
 			case promClient.MetricType_GAUGE:
 				metric["value"] = m.GetGauge().GetValue()
 			}
-			parsedOutput = append(parsedOutput, map[string]map[string]interface{}{
-				value.GetName(): metric,
+			parsedOutput = append(parsedOutput, parseMetric{
+				metricFamily.GetName(): metric,
 			})
 		}
 	}
@@ -222,7 +225,7 @@ func TestMain_E2E(t *testing.T) {
 			name: "should start application with no faults detected",
 			mock: false,
 			assertion: func(isStateMismatch float64, err error) {
-				var expected float64 = 0
+				const expected float64 = 0
 				assert.Equal(t, isStateMismatch, expected)
 				slackNotificationClient.AssertNotCalled(t, "PostMessageContext")
 			},
@@ -231,7 +234,7 @@ func TestMain_E2E(t *testing.T) {
 			name: "should start application with faults detected",
 			mock: true,
 			assertion: func(isStateMismatch float64, err error) {
-				var expected float64 = 1
+				const expected float64 = 1
 				assert.Equal(t, isStateMismatch, expected)
 				slackNotificationClient.AssertCalled(t, "PostMessageContext")
 			},
@@ -284,8 +287,8 @@ func TestMain_E2E(t *testing.T) {
 				assert.NoError(t, err)
 				parsedMetric := parseMetricRes(strings.NewReader(string(body)))
 				for _, m := range parsedMetric {
-					if m["fault_detector_is_state_mismatch"] != nil {
-						isStateMismatch := m["fault_detector_is_state_mismatch"]["value"].(float64)
+					if m[faultDetectorStateMismatch] != nil {
+						isStateMismatch := m[faultDetectorStateMismatch]["value"].(float64)
 						tt.assertion(isStateMismatch, nil)
 					}
 				}

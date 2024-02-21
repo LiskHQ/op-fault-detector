@@ -112,7 +112,7 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 	logger.Infof("Fault proof window is set to %d.", finalizedPeriodSeconds)
 
 	var currentOutputIndex uint64
-	if faultDetectorConfig.Startbatchindex == -1 {
+	if faultDetectorConfig.StartBatchIndex == -1 {
 		logger.Infof("Finding appropriate starting unfinalized batch....")
 		firstUnfinalized, _ := FindFirstUnfinalizedOutputIndex(
 			ctx,
@@ -133,7 +133,7 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 			currentOutputIndex = firstUnfinalized
 		}
 	} else {
-		currentOutputIndex = uint64(faultDetectorConfig.Startbatchindex)
+		currentOutputIndex = uint64(faultDetectorConfig.StartBatchIndex)
 	}
 	logger.Infof("Starting unfinalized batch index is set to %d.", currentOutputIndex)
 
