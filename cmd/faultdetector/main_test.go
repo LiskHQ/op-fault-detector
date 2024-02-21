@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	promClient "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	slackClient "github.com/slack-go/slack"
@@ -30,16 +32,19 @@ import (
 )
 
 const (
-	host                       = "127.0.0.1"
-	port                       = 8088
-	faultProofWindow           = 1000
-	currentOutputIndex         = 1
-	l1RpcApi                   = "https://rpc.notadegen.com/eth"
-	l2RpcApi                   = "https://mainnet.optimism.io/"
-	faultDetectorStateMismatch = "fault_detector_is_state_mismatch"
+	host                                = "127.0.0.1"
+	port                                = 8088
+	faultProofWindow                    = 1000
+	currentOutputIndex                  = 1
+	l1RpcApi                            = "https://rpc.notadegen.com/eth"
+	l2RpcApi                            = "https://mainnet.optimism.io/"
+	faultDetectorStateMismatchMetricKey = "fault_detector_is_state_mismatch"
+	metricValue                         = "value"
+	postMessageContextFnName            = "PostMessageContext"
+	channelID                           = "TestChannelID"
 )
 
-type parseMetric map[string]map[string]interface{}
+type parsedMetricMap map[string]map[string]interface{}
 
 type mockContractOracleAccessor struct {
 	mock.Mock
@@ -65,7 +70,7 @@ func (o *mockContractOracleAccessor) FinalizationPeriodSeconds() (*big.Int, erro
 }
 
 func (o *mockSlackClient) PostMessageContext(ctx context.Context, channelID string, options ...slackClient.MsgOption) (string, string, error) {
-	called := o.MethodCalled("PostMessageContext")
+	called := o.MethodCalled(postMessageContextFnName)
 	return called.Get(0).(string), called.Get(1).(string), called.Error(2)
 }
 
@@ -76,13 +81,18 @@ func randHash() (out common.Hash) {
 	return out
 }
 
+func randTimestamp() (out uint64) {
+	timestamp := uint64(rand.Int63n(time.Now().Unix()))
+	return timestamp
+}
+
 func prepareHTTPServer(t *testing.T, ctx context.Context, logger log.Logger, config *config.Config, wg *sync.WaitGroup, erroChan chan error) *api.HTTPServer {
 	testServer := api.NewHTTPServer(ctx, logger, wg, config, erroChan)
 	return testServer
 }
 
 func prepareNotification(t *testing.T, ctx context.Context, logger log.Logger, config *config.Config) *notification.Notification {
-	slackNotificationClient.On("PostMessageContext").Return("TestChannelID", "1234569.1000", nil)
+	slackNotificationClient.On(postMessageContextFnName).Return(channelID, "1234569.1000", nil)
 	testNotificationService := notification.GetNotification(ctx, logger, slackNotificationClient, config.Notification)
 	return testNotificationService
 }
@@ -95,24 +105,33 @@ func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, 
 		metrics := faultdetector.NewFaultDetectorMetrics(reg)
 
 		// Create chain API clients
-		l1RpcApi, _ := chain.GetAPIClient(ctx, l1RpcApi, logger)
-		l2RpcApi, _ := chain.GetAPIClient(ctx, l2RpcApi, logger)
+		l1RpcApi, err := chain.GetAPIClient(ctx, l1RpcApi, logger)
+		if err != nil {
+			panic(err)
+		}
+		l2RpcApi, err := chain.GetAPIClient(ctx, l2RpcApi, logger)
+		if err != nil {
+			panic(err)
+		}
 
-		latestL2BlockNumber, _ := l2RpcApi.GetLatestBlockNumber(ctx)
+		latestL2BlockNumber, err := l2RpcApi.GetLatestBlockNumber(ctx)
+		if err != nil {
+			panic(err)
+		}
 
-		// Mock oracle conmtract accessor
+		// Mock oracle contract accessor
 		var oracle *mockContractOracleAccessor = new(mockContractOracleAccessor)
 		oracle.On("GetNextOutputIndex").Return(big.NewInt(2), nil)
 		oracle.On("FinalizationPeriodSeconds").Return(faultProofWindow, nil)
 		oracle.On("GetL2Output", big.NewInt(0)).Return(chain.L2Output{
 			OutputRoot:    randHash().String(),
-			L1Timestamp:   1000000,
+			L1Timestamp:   randTimestamp(),
 			L2BlockNumber: latestL2BlockNumber,
 			L2OutputIndex: 2,
 		}, nil)
 		oracle.On("GetL2Output", big.NewInt(1)).Return(chain.L2Output{
 			OutputRoot:    randHash().String(),
-			L1Timestamp:   1000000,
+			L1Timestamp:   randTimestamp(),
 			L2BlockNumber: latestL2BlockNumber,
 			L2OutputIndex: 2,
 		}, nil)
@@ -124,7 +143,10 @@ func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, 
 }
 
 func prepareConfig(t *testing.T) *config.Config {
-	serverPort, _ := strconv.Atoi(fmt.Sprintf("%d", port))
+	serverPort, err := strconv.Atoi(fmt.Sprintf("%d", port))
+	if err != nil {
+		panic(err)
+	}
 
 	return &config.Config{
 		System: &config.System{
@@ -147,17 +169,20 @@ func prepareConfig(t *testing.T) *config.Config {
 		Notification: &config.Notification{
 			Enable: true,
 			Slack: &config.SlackConfig{
-				ChannelID: "TestChannelID",
+				ChannelID: channelID,
 			},
 		},
 	}
 }
 
-func parseMetricRes(input *strings.Reader) []parseMetric {
+func parseMetricRes(input *strings.Reader) []parsedMetricMap {
 	parser := &expfmt.TextParser{}
-	metricFamilies, _ := parser.TextToMetricFamilies(input)
+	metricFamilies, err := parser.TextToMetricFamilies(input)
+	if err != nil {
+		panic(err)
+	}
 
-	var parsedOutput []parseMetric
+	var parsedOutput []parsedMetricMap
 	for _, metricFamily := range metricFamilies {
 		for _, m := range metricFamily.GetMetric() {
 			metric := make(map[string]interface{})
@@ -166,11 +191,11 @@ func parseMetricRes(input *strings.Reader) []parseMetric {
 			}
 			switch metricFamily.GetType() {
 			case promClient.MetricType_COUNTER:
-				metric["value"] = m.GetCounter().GetValue()
+				metric[metricValue] = m.GetCounter().GetValue()
 			case promClient.MetricType_GAUGE:
-				metric["value"] = m.GetGauge().GetValue()
+				metric[metricValue] = m.GetGauge().GetValue()
 			}
-			parsedOutput = append(parsedOutput, parseMetric{
+			parsedOutput = append(parsedOutput, parsedMetricMap{
 				metricFamily.GetName(): metric,
 			})
 		}
@@ -194,7 +219,7 @@ func TestMain_E2E(t *testing.T) {
 			assertion: func(isStateMismatch float64, err error) {
 				const expected float64 = 0
 				assert.Equal(t, isStateMismatch, expected)
-				slackNotificationClient.AssertNotCalled(t, "PostMessageContext")
+				slackNotificationClient.AssertNotCalled(t, postMessageContextFnName)
 			},
 		},
 		{
@@ -203,7 +228,7 @@ func TestMain_E2E(t *testing.T) {
 			assertion: func(isStateMismatch float64, err error) {
 				const expected float64 = 1
 				assert.Equal(t, isStateMismatch, expected)
-				slackNotificationClient.AssertCalled(t, "PostMessageContext")
+				slackNotificationClient.AssertCalled(t, postMessageContextFnName)
 			},
 		},
 	}
@@ -212,13 +237,19 @@ func TestMain_E2E(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			wg := sync.WaitGroup{}
-			logger, _ := log.NewDefaultProductionLogger()
+			logger, err := log.NewDefaultProductionLogger()
+			if err != nil {
+				panic(err)
+			}
+
 			errorChan := make(chan error)
 			registry := prometheus.NewRegistry()
 			testConfig := prepareConfig(&testing.T{})
 			testServer := prepareHTTPServer(&testing.T{}, ctx, logger, testConfig, &wg, errorChan)
 			testNotificationService := prepareNotification(&testing.T{}, ctx, logger, testConfig)
 			testFaultDetector := prepareFaultDetector(&testing.T{}, ctx, logger, testNotificationService, &wg, registry, testConfig, errorChan, tt.mock)
+
+			testServer.RegisterHandler("GET", "/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: registry, ProcessStartTime: time.Now()}))
 
 			app := &App{
 				ctx:           ctx,
@@ -250,8 +281,8 @@ func TestMain_E2E(t *testing.T) {
 				assert.NoError(t, err)
 				parsedMetric := parseMetricRes(strings.NewReader(string(body)))
 				for _, m := range parsedMetric {
-					if m[faultDetectorStateMismatch] != nil {
-						isStateMismatch := m[faultDetectorStateMismatch]["value"].(float64)
+					if m[faultDetectorStateMismatchMetricKey] != nil {
+						isStateMismatch := m[faultDetectorStateMismatchMetricKey][metricValue].(float64)
 						tt.assertion(isStateMismatch, nil)
 					}
 				}

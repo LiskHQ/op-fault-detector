@@ -282,7 +282,7 @@ func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.Ch
 		oracleContractAccessor: oracleContractAccessor,
 		faultProofWindow:       faultProofWindow,
 		currentOutputIndex:     currentOutputIndex,
-		diverged:               false,
+		diverged:               diverged,
 		metrics:                metrics,
 		notification:           notification,
 	}
