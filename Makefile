@@ -34,6 +34,10 @@ test.coverage: test
 
 test.coverage.html: test
 	go tool cover -html=coverage.out
+
+test.e2e: # Runs e2e tests
+	@echo "Test e2e"
+	@go test -v ./cmd/$(APP_NAME)
 	
 lint: # Runs golangci-lint on the repo
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest

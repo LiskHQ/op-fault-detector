@@ -30,7 +30,7 @@ type FaultDetector struct {
 	metrics                *faultDetectorMetrics
 	l1RpcApi               *chain.ChainAPIClient
 	l2RpcApi               *chain.ChainAPIClient
-	oracleContractAccessor *chain.OracleAccessor
+	oracleContractAccessor OracleAccessor
 	faultProofWindow       uint64
 	currentOutputIndex     uint64
 	diverged               bool
@@ -46,7 +46,7 @@ type faultDetectorMetrics struct {
 }
 
 // NewFaultDetectorMetrics returns [FaultDetectorMetrics] with initialized metrics and registering to prometheus registry.
-func newFaultDetectorMetrics(reg prometheus.Registerer) *faultDetectorMetrics {
+func NewFaultDetectorMetrics(reg prometheus.Registerer) *faultDetectorMetrics {
 	m := &faultDetectorMetrics{
 		highestOutputIndex: prometheus.NewGauge(
 			prometheus.GaugeOpts{
@@ -112,7 +112,7 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 	logger.Infof("Fault proof window is set to %d.", finalizedPeriodSeconds)
 
 	var currentOutputIndex uint64
-	if faultDetectorConfig.Startbatchindex == -1 {
+	if faultDetectorConfig.StartBatchIndex == -1 {
 		logger.Infof("Finding appropriate starting unfinalized batch....")
 		firstUnfinalized, _ := FindFirstUnfinalizedOutputIndex(
 			ctx,
@@ -133,11 +133,11 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 			currentOutputIndex = firstUnfinalized
 		}
 	} else {
-		currentOutputIndex = uint64(faultDetectorConfig.Startbatchindex)
+		currentOutputIndex = uint64(faultDetectorConfig.StartBatchIndex)
 	}
 	logger.Infof("Starting unfinalized batch index is set to %d.", currentOutputIndex)
 
-	metrics := newFaultDetectorMetrics(metricRegistry)
+	metrics := NewFaultDetectorMetrics(metricRegistry)
 	// Initially set state mismatch to 0
 	metrics.stateMismatch.Set(0)
 
@@ -269,4 +269,21 @@ func (fd *FaultDetector) checkFault() error {
 	fd.currentOutputIndex++
 	fd.metrics.stateMismatch.Set(0)
 	return nil
+}
+
+func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.ChainAPIClient, l2RpcApi *chain.ChainAPIClient, oracleContractAccessor OracleAccessor, faultProofWindow uint64, currentOutputIndex uint64, metrics *faultDetectorMetrics, notification *notification.Notification, diverged bool, wg *sync.WaitGroup, errorChan chan error) *FaultDetector {
+	return &FaultDetector{
+		ctx:                    ctx,
+		logger:                 logger,
+		errorChan:              errorChan,
+		wg:                     wg,
+		l1RpcApi:               l1RpcApi,
+		l2RpcApi:               l2RpcApi,
+		oracleContractAccessor: oracleContractAccessor,
+		faultProofWindow:       faultProofWindow,
+		currentOutputIndex:     currentOutputIndex,
+		diverged:               diverged,
+		metrics:                metrics,
+		notification:           notification,
+	}
 }

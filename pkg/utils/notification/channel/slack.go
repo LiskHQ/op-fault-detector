@@ -13,10 +13,14 @@ import (
 	"github.com/slack-go/slack"
 )
 
+type SlackClient interface {
+	PostMessageContext(ctx context.Context, channelID string, options ...slack.MsgOption) (string, string, error)
+}
+
 // Slack holds all necessary information require to communicate with the Slack API.
 type Slack struct {
-	client    *slack.Client
-	ChannelID string
+	client    SlackClient
+	channelID string
 	ctx       context.Context
 	logger    log.Logger
 }
@@ -32,7 +36,7 @@ func NewClient(ctx context.Context, logger log.Logger, slackConfig *config.Slack
 
 	return &Slack{
 		client:    client,
-		ChannelID: slackConfig.ChannelID,
+		channelID: slackConfig.ChannelID,
 		ctx:       ctx,
 		logger:    logger,
 	}, nil
@@ -42,11 +46,11 @@ func NewClient(ctx context.Context, logger log.Logger, slackConfig *config.Slack
 func (s *Slack) Notify(msg string) error {
 	_, timestamp, err := s.client.PostMessageContext(
 		s.ctx,
-		s.ChannelID,
+		s.channelID,
 		slack.MsgOptionText(msg, false),
 	)
 	if err != nil {
-		s.logger.Errorf("Failed to send notification to the channel %s, error: %w", s.ChannelID, err)
+		s.logger.Errorf("Failed to send notification to the channel %s, error: %w", s.channelID, err)
 		return err
 	}
 
@@ -58,6 +62,15 @@ func (s *Slack) Notify(msg string) error {
 	}
 	localTime := time.UnixMilli(timeInMS * int64(time.Microsecond)).Local()
 
-	s.logger.Infof("Message successfully sent to the channel %s at %s", s.ChannelID, localTime.String())
+	s.logger.Infof("Message successfully sent to the channel %s at %s", s.channelID, localTime.String())
 	return nil
+}
+
+func GetSlackClient(ctx context.Context, logger log.Logger, client SlackClient, slackConfig *config.SlackConfig) *Slack {
+	return &Slack{
+		client:    client,
+		channelID: slackConfig.ChannelID,
+		ctx:       ctx,
+		logger:    logger,
+	}
 }

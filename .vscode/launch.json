@@ -9,7 +9,8 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceRoot}/cmd",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceRoot}/cmd/faultdetector",
             "args": ["--config", "./config.yaml"],
             "showLog": true
         }

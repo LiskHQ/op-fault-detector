@@ -18,6 +18,7 @@ type ChainAPIClient interface {
 type OracleAccessor interface {
 	GetNextOutputIndex() (*big.Int, error)
 	GetL2Output(index *big.Int) (chain.L2Output, error)
+	FinalizationPeriodSeconds() (*big.Int, error)
 }
 
 // FindFirstUnfinalizedOutputIndex finds and returns the first L2 output index that has not yet passed the fault proof window.

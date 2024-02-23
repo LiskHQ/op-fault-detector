@@ -42,3 +42,9 @@ func (n *Notification) Notify(msg string) error {
 
 	return combinedError
 }
+
+func GetNotification(ctx context.Context, logger log.Logger, client slack.SlackClient, notificationConfig *config.Notification) *Notification {
+	return &Notification{
+		slack: slack.GetSlackClient(ctx, logger, client, notificationConfig.Slack),
+	}
+}
