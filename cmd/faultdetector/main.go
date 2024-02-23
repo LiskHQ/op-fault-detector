@@ -50,7 +50,7 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 	flag.Parse()
 	config, err := getAppConfig(logger, *configFilepath)
 	if err != nil {
-		logger.Errorf("Failed at parsing config with error %w", err)
+		logger.Errorf("Failed at parsing config with error %v", err)
 		return nil, err
 	}
 
@@ -66,7 +66,7 @@ func NewApp(ctx context.Context, logger log.Logger) (*App, error) {
 			config.Notification,
 		)
 		if err != nil {
-			logger.Errorf("Failed to initialize notification service, error: %w", err)
+			logger.Errorf("Failed to initialize notification service, error: %v", err)
 			return nil, err
 		}
 	}
@@ -136,7 +136,7 @@ func (app *App) Start() {
 			app.logger.Errorf("Received error of %v", err)
 			if app.notification != nil {
 				if err := app.notification.Notify("Error while starting application"); err != nil {
-					app.logger.Errorf("Failed to send notification, error: %w", err)
+					app.logger.Errorf("Failed to send notification, error: %v", err)
 				}
 			}
 			return
@@ -148,7 +148,7 @@ func (app *App) stop() {
 	app.faultDetector.Stop()
 	err := app.apiServer.Stop()
 	if err != nil {
-		app.logger.Error("Server shutdown not successful: %w", err)
+		app.logger.Error("Server shutdown not successful: %v", err)
 	}
 }
 
@@ -158,13 +158,13 @@ func main() {
 
 	logger, err := log.NewDefaultProductionLogger()
 	if err != nil {
-		logger.Errorf("Failed to create logger, %w", err)
+		logger.Errorf("Failed to create logger, %v", err)
 		return
 	}
 
 	app, err := NewApp(ctx, logger)
 	if err != nil {
-		logger.Errorf("Failed to create app, %w", err)
+		logger.Errorf("Failed to create app, %v", err)
 		return
 	}
 
@@ -180,10 +180,10 @@ func getAppConfig(logger log.Logger, configFilepath string) (*config.Config, err
 	splits := strings.FieldsFunc(configFilenameWithExt, func(r rune) bool { return r == '.' })
 	configType := splits[len(splits)-1] // Config file extension
 
+	viper.AddConfigPath(configDir)
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("..")
 	viper.AddConfigPath("$HOME/.op-fault-detector")
-	viper.AddConfigPath(configDir)
 	viper.SetConfigName(configFilenameWithExt)
 	viper.SetConfigType(configType)
 	err := viper.ReadInConfig()

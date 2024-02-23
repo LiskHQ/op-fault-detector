@@ -61,14 +61,18 @@ docker-run: # Runs docker image, use `make docker-run config={PATH_TO_CONFIG_FIL
 ifdef config
 	@echo "$(BLUE) Running docker image...$(COLOR_END)"
 ifdef slack_access_token
-	@docker run -p 8080:8080 -v $(config):/home/onchain/faultdetector/config.yaml -t -e SLACK_ACCESS_TOKEN_KEY=$(slack_access_token) $(APP_NAME)
+	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(config):/home/onchain/faultdetector/config.yaml -t -e SLACK_ACCESS_TOKEN_KEY=$(slack_access_token) $(APP_NAME)
 else
-	@docker run -p 8080:8080 -v $(config):/home/onchain/faultdetector/config.yaml -t $(APP_NAME)
+	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(config):/home/onchain/faultdetector/config.yaml -t $(APP_NAME)
 endif
 else
 	@echo "$(BLUE) Running docker image...$(COLOR_END)"
-	@docker run -p 8080:8080 $(APP_NAME)
+	@docker run --name $(APP_NAME) -p 8080:8080 -d $(APP_NAME)
 endif
+
+docker-stop:
+	@echo "$(BLUE) Stopping and removing docker container $(APP_NAME)...$(COLOR_END)"
+	@docker rm -f $(APP_NAME)
 
 .PHONY: help
 help: # Show help for each of the Makefile recipes

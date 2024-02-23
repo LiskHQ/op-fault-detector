@@ -14,7 +14,7 @@ import (
 
 var (
 	providerEndpointRegex = regexp.MustCompile(`^(http|https|ws|wss)://`)
-	addressRegex          = regexp.MustCompile(`(\b0x[a-f0-9]{40}\b)`)
+	addressRegex          = regexp.MustCompile(`(\b0x[A-Fa-f0-9]{40}\b)`)
 	hostRegex             = regexp.MustCompile(`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`)
 	basePathRegex         = regexp.MustCompile(`^/?api$`)
 	registerVersionRegex  = regexp.MustCompile(`^v[1-9]\d*$`)

@@ -50,7 +50,7 @@ func (s *Slack) Notify(msg string) error {
 		slack.MsgOptionText(msg, false),
 	)
 	if err != nil {
-		s.logger.Errorf("Failed to send notification to the channel %s, error: %w", s.channelID, err)
+		s.logger.Errorf("Failed to send notification to the channel %s, error: %v", s.channelID, err)
 		return err
 	}
 
