@@ -8,9 +8,11 @@ import (
 	"sync"
 	"time"
 
+	v1 "github.com/LiskHQ/op-fault-detector/pkg/api/handlers/v1"
 	"github.com/LiskHQ/op-fault-detector/pkg/api/middlewares"
 	"github.com/LiskHQ/op-fault-detector/pkg/api/routes"
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
+	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/gin-gonic/gin"
 )
@@ -25,6 +27,26 @@ type HTTPServer struct {
 	errorChan chan error
 }
 
+// TODO add comment
+func (w *HTTPServer) AddHandler(fd *faultdetector.FaultDetector, versions []string) {
+	basePath := w.router.BasePath()
+	baseGroup := w.router.Group(basePath)
+	for _, version := range versions {
+		group := baseGroup.Group(version)
+		switch version {
+		case "v1":
+			group.GET("/status", func(c *gin.Context) {
+				v1.GetStatus(c, fd.GetStatus())
+			})
+
+		default:
+			w.logger.Warningf("No routes and handlers defined for version %s. Please verify the API config.", version)
+		}
+	}
+
+}
+
+// TODO check register handler already called before start
 // Start starts the HTTP API server.
 func (w *HTTPServer) Start() {
 	defer w.wg.Done()
@@ -74,11 +96,12 @@ func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, c
 
 	routes.RegisterHandlers(logger, router)
 
+	// TODO should remove
 	// Register handlers for routes following the base path
-	basePath := config.Api.BasePath
-	baseGroup := router.Group(basePath)
-	logger.Debugf("Registering handlers for endpoints under path '%s'.", basePath)
-	routes.RegisterHandlersByGroup(logger, baseGroup, config.Api.RegisterVersions)
+	// basePath := config.Api.BasePath
+	// baseGroup := router.Group(basePath)
+	// logger.Debugf("Registering handlers for endpoints under path '%s'.", basePath)
+	// routes.RegisterHandlersByGroup(logger, baseGroup, config.Api.RegisterVersions)
 
 	host := config.Api.Server.Host
 	port := config.Api.Server.Port

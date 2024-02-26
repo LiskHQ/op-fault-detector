@@ -3,7 +3,6 @@ package routes
 
 import (
 	"github.com/LiskHQ/op-fault-detector/pkg/api/handlers"
-	v1 "github.com/LiskHQ/op-fault-detector/pkg/api/handlers/v1"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/gin-gonic/gin"
 )
@@ -22,13 +21,14 @@ func RegisterHandlersByGroup(logger log.Logger, routerGroup *gin.RouterGroup, ve
 
 // RegisterHandlersForVersion is responsible to register API version specific route handlers.
 func RegisterHandlersForVersion(logger log.Logger, routerGroup *gin.RouterGroup, version string) {
-	group := routerGroup.Group(version)
+	// TODO should remove?
+	// group := routerGroup.Group(version)
 
-	switch version {
-	case "v1":
-		group.GET("/status", v1.GetStatus)
+	// switch version {
+	// case "v1":
+	// 	group.GET("/status", v1.GetStatus)
 
-	default:
-		logger.Warningf("No routes and handlers defined for version %s. Please verify the API config.", version)
-	}
+	// default:
+	// 	logger.Warningf("No routes and handlers defined for version %s. Please verify the API config.", version)
+	// }
 }

@@ -33,7 +33,7 @@ type FaultDetector struct {
 	oracleContractAccessor OracleAccessor
 	faultProofWindow       uint64
 	currentOutputIndex     uint64
-	diverged               bool
+	diverged               bool // TODO add mutex
 	ticker                 *time.Ticker
 	quitTickerChan         chan struct{}
 	notification           *notification.Notification
@@ -271,6 +271,12 @@ func (fd *FaultDetector) checkFault() error {
 	return nil
 }
 
+// TODO add comments
+func (fd *FaultDetector) GetStatus() bool {
+	return fd.diverged
+}
+
+// TODO add comments
 func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.ChainAPIClient, l2RpcApi *chain.ChainAPIClient, oracleContractAccessor OracleAccessor, faultProofWindow uint64, currentOutputIndex uint64, metrics *faultDetectorMetrics, notification *notification.Notification, diverged bool, wg *sync.WaitGroup, errorChan chan error) *FaultDetector {
 	return &FaultDetector{
 		ctx:                    ctx,
