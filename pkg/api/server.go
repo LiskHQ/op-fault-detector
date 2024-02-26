@@ -27,26 +27,23 @@ type HTTPServer struct {
 	errorChan chan error
 }
 
-// TODO add comment
-func (w *HTTPServer) AddHandler(fd *faultdetector.FaultDetector, versions []string) {
-	basePath := w.router.BasePath()
+// AddHandler is responsible to register route handlers.
+func (w *HTTPServer) AddHandler(fd *faultdetector.FaultDetector, versions []string, basePath string) {
 	baseGroup := w.router.Group(basePath)
 	for _, version := range versions {
 		group := baseGroup.Group(version)
 		switch version {
 		case "v1":
 			group.GET("/status", func(c *gin.Context) {
-				v1.GetStatus(c, fd.GetStatus())
+				v1.GetStatus(c, fd.IsFaultDetected())
 			})
 
 		default:
 			w.logger.Warningf("No routes and handlers defined for version %s. Please verify the API config.", version)
 		}
 	}
-
 }
 
-// TODO check register handler already called before start
 // Start starts the HTTP API server.
 func (w *HTTPServer) Start() {
 	defer w.wg.Done()
@@ -95,13 +92,6 @@ func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, c
 	logger.Debug("Registering handlers for non-versioned endpoints.")
 
 	routes.RegisterHandlers(logger, router)
-
-	// TODO should remove
-	// Register handlers for routes following the base path
-	// basePath := config.Api.BasePath
-	// baseGroup := router.Group(basePath)
-	// logger.Debugf("Registering handlers for endpoints under path '%s'.", basePath)
-	// routes.RegisterHandlersByGroup(logger, baseGroup, config.Api.RegisterVersions)
 
 	host := config.Api.Server.Host
 	port := config.Api.Server.Port

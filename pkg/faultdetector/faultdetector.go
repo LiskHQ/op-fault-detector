@@ -33,10 +33,11 @@ type FaultDetector struct {
 	oracleContractAccessor OracleAccessor
 	faultProofWindow       uint64
 	currentOutputIndex     uint64
-	diverged               bool // TODO add mutex
+	diverged               bool
 	ticker                 *time.Ticker
 	quitTickerChan         chan struct{}
 	notification           *notification.Notification
+	mutex                  *sync.RWMutex
 }
 
 type faultDetectorMetrics struct {
@@ -154,6 +155,7 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 		diverged:               false,
 		metrics:                metrics,
 		notification:           notification,
+		mutex:                  new(sync.RWMutex),
 	}
 
 	return faultDetector, nil
@@ -245,7 +247,10 @@ func (fd *FaultDetector) checkFault() error {
 		outputBlockHeader.Hash(),
 	)
 	if calculatedOutputRoot != expectedOutputRoot {
+		fd.mutex.Lock()
 		fd.diverged = true
+		fd.mutex.Unlock()
+
 		fd.metrics.stateMismatch.Set(1)
 		finalizationTime := time.Unix(int64(outputBlockHeader.Time+fd.faultProofWindow), 0)
 
@@ -265,19 +270,24 @@ func (fd *FaultDetector) checkFault() error {
 	// Time taken to execute each batch in milliseconds.
 	elapsedTime := time.Since(startTime).Milliseconds()
 	fd.logger.Infof("Successfully checked current batch with index %d --> ok, time taken %dms.", fd.currentOutputIndex, elapsedTime)
+	fd.mutex.Lock()
 	fd.diverged = false
+	fd.mutex.Unlock()
+
 	fd.currentOutputIndex++
 	fd.metrics.stateMismatch.Set(0)
 	return nil
 }
 
-// TODO add comments
-func (fd *FaultDetector) GetStatus() bool {
+// IsFaultDetected returns status of the fault detector.
+func (fd *FaultDetector) IsFaultDetected() bool {
+	fd.mutex.RLock()
+	defer fd.mutex.RUnlock()
 	return fd.diverged
 }
 
-// TODO add comments
-func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.ChainAPIClient, l2RpcApi *chain.ChainAPIClient, oracleContractAccessor OracleAccessor, faultProofWindow uint64, currentOutputIndex uint64, metrics *faultDetectorMetrics, notification *notification.Notification, diverged bool, wg *sync.WaitGroup, errorChan chan error) *FaultDetector {
+// GetFaultDetector create [FaultDetector] instance from input values.
+func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.ChainAPIClient, l2RpcApi *chain.ChainAPIClient, oracleContractAccessor OracleAccessor, faultProofWindow uint64, currentOutputIndex uint64, metrics *faultDetectorMetrics, notification *notification.Notification, diverged bool, wg *sync.WaitGroup, errorChan chan error, mutex *sync.RWMutex) *FaultDetector {
 	return &FaultDetector{
 		ctx:                    ctx,
 		logger:                 logger,
@@ -291,5 +301,6 @@ func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.Ch
 		diverged:               diverged,
 		metrics:                metrics,
 		notification:           notification,
+		mutex:                  mutex,
 	}
 }

@@ -6,6 +6,7 @@ APP_NAME = faultdetector
 GREEN = \033[1;32m
 BLUE = \033[1;34m
 COLOR_END = \033[0;39m
+CONFIG_PATH = $(realpath $(config))
 
 build: # Builds the application and create a binary at ./bin/
 	@echo "$(BLUE)» Building fault detector application binary... $(COLOR_END)"
@@ -61,9 +62,9 @@ docker-run: # Runs docker image, use `make docker-run config={PATH_TO_CONFIG_FIL
 ifdef config
 	@echo "$(BLUE) Running docker image...$(COLOR_END)"
 ifdef slack_access_token
-	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(config):/home/onchain/faultdetector/config.yaml -t -e SLACK_ACCESS_TOKEN_KEY=$(slack_access_token) $(APP_NAME)
+	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(CONFIG_PATH):/home/onchain/faultdetector/config.yaml -t -e SLACK_ACCESS_TOKEN_KEY=$(slack_access_token) $(APP_NAME)
 else
-	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(config):/home/onchain/faultdetector/config.yaml -t $(APP_NAME)
+	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(CONFIG_PATH):/home/onchain/faultdetector/config.yaml -t $(APP_NAME)
 endif
 else
 	@echo "$(BLUE) Running docker image...$(COLOR_END)"
