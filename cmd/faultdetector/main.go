@@ -114,7 +114,7 @@ func (app *App) Start() {
 	app.wg.Add(1)
 	go app.faultDetector.Start()
 
-	app.apiServer.AddHandler(app.faultDetector, app.config.Api.RegisterVersions, app.config.Api.BasePath)
+	app.apiServer.RegisterHandlersForVersion(app.faultDetector, app.config.Api.RegisterVersions, app.config.Api.BasePath)
 	app.wg.Add(1)
 	go app.apiServer.Start()
 

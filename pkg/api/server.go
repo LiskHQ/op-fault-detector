@@ -17,6 +17,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var areVersionsHandlerRegistered bool = false
+
 // HTTPServer embeds the http.Server along with the various other properties.
 type HTTPServer struct {
 	server    *http.Server
@@ -27,8 +29,8 @@ type HTTPServer struct {
 	errorChan chan error
 }
 
-// AddHandler is responsible to register route handlers.
-func (w *HTTPServer) AddHandler(fd *faultdetector.FaultDetector, versions []string, basePath string) {
+// RegisterHandlersForVersion is responsible to register API version specific route handlers.
+func (w *HTTPServer) RegisterHandlersForVersion(fd *faultdetector.FaultDetector, versions []string, basePath string) {
 	baseGroup := w.router.Group(basePath)
 	for _, version := range versions {
 		group := baseGroup.Group(version)
@@ -42,11 +44,16 @@ func (w *HTTPServer) AddHandler(fd *faultdetector.FaultDetector, versions []stri
 			w.logger.Warningf("No routes and handlers defined for version %s. Please verify the API config.", version)
 		}
 	}
+	areVersionsHandlerRegistered = true
 }
 
 // Start starts the HTTP API server.
 func (w *HTTPServer) Start() {
 	defer w.wg.Done()
+
+	if !areVersionsHandlerRegistered {
+		w.errorChan <- fmt.Errorf("API specific versions handler are not registered")
+	}
 
 	w.logger.Infof("Starting the HTTP server on %s.", w.server.Addr)
 	err := w.server.ListenAndServe()
