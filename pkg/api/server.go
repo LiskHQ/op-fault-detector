@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/LiskHQ/op-fault-detector/pkg/api/handlers"
 	v1 "github.com/LiskHQ/op-fault-detector/pkg/api/handlers/v1"
 	"github.com/LiskHQ/op-fault-detector/pkg/api/middlewares"
-	"github.com/LiskHQ/op-fault-detector/pkg/api/routes"
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
 	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
@@ -29,8 +29,13 @@ type HTTPServer struct {
 	errorChan chan error
 }
 
-// RegisterHandlersForVersion is responsible to register API version specific route handlers.
-func (w *HTTPServer) RegisterHandlersForVersion(fd *faultdetector.FaultDetector, versions []string, basePath string) {
+// registerHandlers is responsible to register all handlers for routes without any base path.
+func registerHandlers(logger log.Logger, router *gin.Engine) {
+	router.GET("/ping", handlers.GetPing)
+}
+
+// RegisterHandlersForVersions is responsible to register API version specific route handlers.
+func (w *HTTPServer) RegisterHandlersForVersions(fd *faultdetector.FaultDetector, versions []string, basePath string) {
 	baseGroup := w.router.Group(basePath)
 	for _, version := range versions {
 		group := baseGroup.Group(version)
@@ -98,7 +103,7 @@ func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, c
 	// Register handlers for routes without any base path
 	logger.Debug("Registering handlers for non-versioned endpoints.")
 
-	routes.RegisterHandlers(logger, router)
+	registerHandlers(logger, router)
 
 	host := config.Api.Server.Host
 	port := config.Api.Server.Port

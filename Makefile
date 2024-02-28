@@ -59,15 +59,14 @@ docker-build: # Builds docker image
 
 .PHONY: docker-run
 docker-run: # Runs docker image, use `make docker-run config={PATH_TO_CONFIG_FILE}` to provide custom config and to provide slack access token use `make docker-run slack_access_token={ACCESS_TOKEN}`
-ifdef config
-	@echo "$(BLUE) Running docker image...$(COLOR_END)"
-ifdef slack_access_token
+	@echo "$(BLUE) Starting docker container $(APP_NAME)...$(COLOR_END)"
+ifneq ($(and $(config),$(slack_access_token)),)
 	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(CONFIG_PATH):/home/onchain/faultdetector/config.yaml -t -e SLACK_ACCESS_TOKEN_KEY=$(slack_access_token) $(APP_NAME)
-else
+else ifdef config
 	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(CONFIG_PATH):/home/onchain/faultdetector/config.yaml -t $(APP_NAME)
-endif
+else ifdef slack_access_token
+	@docker run --name $(APP_NAME) -p 8080:8080 -d -t -e SLACK_ACCESS_TOKEN_KEY=$(slack_access_token) $(APP_NAME)
 else
-	@echo "$(BLUE) Running docker image...$(COLOR_END)"
 	@docker run --name $(APP_NAME) -p 8080:8080 -d $(APP_NAME)
 endif
 
