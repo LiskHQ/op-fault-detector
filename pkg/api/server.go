@@ -8,12 +8,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/LiskHQ/op-fault-detector/pkg/api/handlers"
+	v1 "github.com/LiskHQ/op-fault-detector/pkg/api/handlers/v1"
 	"github.com/LiskHQ/op-fault-detector/pkg/api/middlewares"
-	"github.com/LiskHQ/op-fault-detector/pkg/api/routes"
 	"github.com/LiskHQ/op-fault-detector/pkg/config"
+	"github.com/LiskHQ/op-fault-detector/pkg/faultdetector"
 	"github.com/LiskHQ/op-fault-detector/pkg/log"
 	"github.com/gin-gonic/gin"
 )
+
+var areVersionsHandlerRegistered bool = false
 
 // HTTPServer embeds the http.Server along with the various other properties.
 type HTTPServer struct {
@@ -25,9 +29,36 @@ type HTTPServer struct {
 	errorChan chan error
 }
 
+// registerHandlers is responsible to register all handlers for routes without any base path.
+func registerHandlers(logger log.Logger, router *gin.Engine) {
+	router.GET("/ping", handlers.GetPing)
+}
+
+// RegisterHandlersForVersions is responsible to register API version specific route handlers.
+func (w *HTTPServer) RegisterHandlersForVersions(fd *faultdetector.FaultDetector, versions []string, basePath string) {
+	baseGroup := w.router.Group(basePath)
+	for _, version := range versions {
+		group := baseGroup.Group(version)
+		switch version {
+		case "v1":
+			group.GET("/status", func(c *gin.Context) {
+				v1.GetStatus(c, fd.IsFaultDetected())
+			})
+
+		default:
+			w.logger.Warningf("No routes and handlers defined for version %s. Please verify the API config.", version)
+		}
+	}
+	areVersionsHandlerRegistered = true
+}
+
 // Start starts the HTTP API server.
 func (w *HTTPServer) Start() {
 	defer w.wg.Done()
+
+	if !areVersionsHandlerRegistered {
+		w.errorChan <- fmt.Errorf("API specific versions handler are not registered")
+	}
 
 	w.logger.Infof("Starting the HTTP server on %s.", w.server.Addr)
 	err := w.server.ListenAndServe()
@@ -72,13 +103,7 @@ func NewHTTPServer(ctx context.Context, logger log.Logger, wg *sync.WaitGroup, c
 	// Register handlers for routes without any base path
 	logger.Debug("Registering handlers for non-versioned endpoints.")
 
-	routes.RegisterHandlers(logger, router)
-
-	// Register handlers for routes following the base path
-	basePath := config.Api.BasePath
-	baseGroup := router.Group(basePath)
-	logger.Debugf("Registering handlers for endpoints under path '%s'.", basePath)
-	routes.RegisterHandlersByGroup(logger, baseGroup, config.Api.RegisterVersions)
+	registerHandlers(logger, router)
 
 	host := config.Api.Server.Host
 	port := config.Api.Server.Port

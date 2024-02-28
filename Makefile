@@ -6,6 +6,7 @@ APP_NAME = faultdetector
 GREEN = \033[1;32m
 BLUE = \033[1;34m
 COLOR_END = \033[0;39m
+CONFIG_PATH = $(realpath $(config))
 
 build: # Builds the application and create a binary at ./bin/
 	@echo "$(BLUE)» Building fault detector application binary... $(COLOR_END)"
@@ -58,17 +59,20 @@ docker-build: # Builds docker image
 
 .PHONY: docker-run
 docker-run: # Runs docker image, use `make docker-run config={PATH_TO_CONFIG_FILE}` to provide custom config and to provide slack access token use `make docker-run slack_access_token={ACCESS_TOKEN}`
-ifdef config
-	@echo "$(BLUE) Running docker image...$(COLOR_END)"
-ifdef slack_access_token
-	@docker run -p 8080:8080 -v $(config):/home/onchain/faultdetector/config.yaml -t -e SLACK_ACCESS_TOKEN_KEY=$(slack_access_token) $(APP_NAME)
+	@echo "$(BLUE) Starting docker container $(APP_NAME)...$(COLOR_END)"
+ifneq ($(and $(config),$(slack_access_token)),)
+	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(CONFIG_PATH):/home/onchain/faultdetector/config.yaml -t -e SLACK_ACCESS_TOKEN_KEY=$(slack_access_token) $(APP_NAME)
+else ifdef config
+	@docker run --name $(APP_NAME) -p 8080:8080 -d -v $(CONFIG_PATH):/home/onchain/faultdetector/config.yaml -t $(APP_NAME)
+else ifdef slack_access_token
+	@docker run --name $(APP_NAME) -p 8080:8080 -d -t -e SLACK_ACCESS_TOKEN_KEY=$(slack_access_token) $(APP_NAME)
 else
-	@docker run -p 8080:8080 -v $(config):/home/onchain/faultdetector/config.yaml -t $(APP_NAME)
+	@docker run --name $(APP_NAME) -p 8080:8080 -d $(APP_NAME)
 endif
-else
-	@echo "$(BLUE) Running docker image...$(COLOR_END)"
-	@docker run -p 8080:8080 $(APP_NAME)
-endif
+
+docker-stop:
+	@echo "$(BLUE) Stopping and removing docker container $(APP_NAME)...$(COLOR_END)"
+	@docker rm -f $(APP_NAME)
 
 .PHONY: help
 help: # Show help for each of the Makefile recipes

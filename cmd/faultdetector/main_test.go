@@ -102,6 +102,7 @@ func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, 
 	if !mock {
 		fd, _ = faultdetector.NewFaultDetector(ctx, logger, erroChan, wg, config.FaultDetectorConfig, reg, testNotificationService)
 	} else {
+		mx := new(sync.RWMutex)
 		metrics := faultdetector.NewFaultDetectorMetrics(reg)
 
 		// Create chain API clients
@@ -136,7 +137,7 @@ func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, 
 			L2OutputIndex: 2,
 		}, nil)
 
-		fd = faultdetector.GetFaultDetector(ctx, logger, l1RpcApi, l2RpcApi, oracle, faultProofWindow, currentOutputIndex, metrics, testNotificationService, false, wg, erroChan)
+		fd = faultdetector.GetFaultDetector(ctx, logger, l1RpcApi, l2RpcApi, oracle, faultProofWindow, currentOutputIndex, metrics, testNotificationService, false, wg, erroChan, mx)
 	}
 
 	return fd

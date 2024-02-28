@@ -37,6 +37,7 @@ type FaultDetector struct {
 	ticker                 *time.Ticker
 	quitTickerChan         chan struct{}
 	notification           *notification.Notification
+	mutex                  *sync.RWMutex
 }
 
 type faultDetectorMetrics struct {
@@ -74,19 +75,19 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 	// Initialize API Providers
 	l1RpcApi, err := chain.GetAPIClient(ctx, faultDetectorConfig.L1RPCEndpoint, logger)
 	if err != nil {
-		logger.Errorf("Failed to create API client for L1 Provider with given endpoint: %s, error: %w", faultDetectorConfig.L1RPCEndpoint, err)
+		logger.Errorf("Failed to create API client for L1 Provider with given endpoint: %s, error: %v", faultDetectorConfig.L1RPCEndpoint, err)
 		return nil, err
 	}
 
 	l2RpcApi, err := chain.GetAPIClient(ctx, faultDetectorConfig.L2RPCEndpoint, logger)
 	if err != nil {
-		logger.Errorf("Failed to create API client for L2 Provider with given endpoint: %s, error: %w", faultDetectorConfig.L2RPCEndpoint, err)
+		logger.Errorf("Failed to create API client for L2 Provider with given endpoint: %s, error: %v", faultDetectorConfig.L2RPCEndpoint, err)
 		return nil, err
 	}
 
 	l2ChainID, err := l2RpcApi.GetChainID(ctx)
 	if err != nil {
-		logger.Errorf("Failed to get L2 provider's chainID: %d, error: %w", encoding.MustConvertBigIntToUint64(l2ChainID), err)
+		logger.Errorf("Failed to get L2 provider's chainID: %d, error: %v", encoding.MustConvertBigIntToUint64(l2ChainID), err)
 		return nil, err
 	}
 
@@ -99,13 +100,13 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 
 	oracleContractAccessor, err := chain.NewOracleAccessor(ctx, chainConfig)
 	if err != nil {
-		logger.Errorf("Failed to create Oracle contract accessor with chainID: %d, L1 endpoint: %s and L2OutputOracleContractAddress: %s, error: %w", encoding.MustConvertBigIntToUint64(l2ChainID), faultDetectorConfig.L1RPCEndpoint, faultDetectorConfig.L2OutputOracleContractAddress, err)
+		logger.Errorf("Failed to create Oracle contract accessor with chainID: %d, L1 endpoint: %s and L2OutputOracleContractAddress: %s, error: %v", encoding.MustConvertBigIntToUint64(l2ChainID), faultDetectorConfig.L1RPCEndpoint, faultDetectorConfig.L2OutputOracleContractAddress, err)
 		return nil, err
 	}
 
 	finalizedPeriodSeconds, err := oracleContractAccessor.FinalizationPeriodSeconds()
 	if err != nil {
-		logger.Errorf("Failed to query `FinalizationPeriodSeconds` from Oracle contract accessor, error: %w", err)
+		logger.Errorf("Failed to query `FinalizationPeriodSeconds` from Oracle contract accessor, error: %v", err)
 		return nil, err
 	}
 
@@ -125,7 +126,7 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 			logger.Infof("No unfinalized batches found. skipping all batches.")
 			nextOutputIndex, err := oracleContractAccessor.GetNextOutputIndex()
 			if err != nil {
-				logger.Errorf("Failed to query next output index, error: %w", err)
+				logger.Errorf("Failed to query next output index, error: %v", err)
 				return nil, err
 			}
 			currentOutputIndex = encoding.MustConvertBigIntToUint64(nextOutputIndex) - 1
@@ -154,6 +155,7 @@ func NewFaultDetector(ctx context.Context, logger log.Logger, errorChan chan err
 		diverged:               false,
 		metrics:                metrics,
 		notification:           notification,
+		mutex:                  new(sync.RWMutex),
 	}
 
 	return faultDetector, nil
@@ -192,7 +194,7 @@ func (fd *FaultDetector) checkFault() error {
 
 	nextOutputIndex, err := fd.oracleContractAccessor.GetNextOutputIndex()
 	if err != nil {
-		fd.logger.Errorf("Failed to query next output index, error: %w.", err)
+		fd.logger.Errorf("Failed to query next output index, error: %v.", err)
 		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
@@ -206,14 +208,14 @@ func (fd *FaultDetector) checkFault() error {
 
 	l2OutputData, err := fd.oracleContractAccessor.GetL2Output(encoding.MustConvertUint64ToBigInt(fd.currentOutputIndex))
 	if err != nil {
-		fd.logger.Errorf("Failed to fetch output associated with index: %d, error: %w.", fd.currentOutputIndex, err)
+		fd.logger.Errorf("Failed to fetch output associated with index: %d, error: %v.", fd.currentOutputIndex, err)
 		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
 
 	latestBlockNumber, err := fd.l2RpcApi.GetLatestBlockNumber(fd.ctx)
 	if err != nil {
-		fd.logger.Errorf("Failed to query L2 latest block number: %d, error: %w", latestBlockNumber, err)
+		fd.logger.Errorf("Failed to query L2 latest block number: %d, error: %v", latestBlockNumber, err)
 		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
@@ -227,14 +229,14 @@ func (fd *FaultDetector) checkFault() error {
 
 	outputBlockHeader, err := fd.l2RpcApi.GetBlockHeaderByNumber(fd.ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber))
 	if err != nil {
-		fd.logger.Errorf("Failed to fetch block header by number: %d, error: %w.", l2OutputBlockNumber, err)
+		fd.logger.Errorf("Failed to fetch block header by number: %d, error: %v.", l2OutputBlockNumber, err)
 		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
 
 	messagePasserProofResponse, err := fd.l2RpcApi.GetProof(fd.ctx, encoding.MustConvertUint64ToBigInt(l2OutputBlockNumber), common.HexToAddress(chain.L2BedrockMessagePasserAddress))
 	if err != nil {
-		fd.logger.Errorf("Failed to fetch message passer proof for the block with height: %d and address: %s, error: %w.", l2OutputBlockNumber, chain.L2BedrockMessagePasserAddress, err)
+		fd.logger.Errorf("Failed to fetch message passer proof for the block with height: %d and address: %s, error: %v.", l2OutputBlockNumber, chain.L2BedrockMessagePasserAddress, err)
 		fd.metrics.apiConnectionFailure.Inc()
 		return err
 	}
@@ -245,14 +247,17 @@ func (fd *FaultDetector) checkFault() error {
 		outputBlockHeader.Hash(),
 	)
 	if calculatedOutputRoot != expectedOutputRoot {
+		fd.mutex.Lock()
 		fd.diverged = true
+		fd.mutex.Unlock()
+
 		fd.metrics.stateMismatch.Set(1)
 		finalizationTime := time.Unix(int64(outputBlockHeader.Time+fd.faultProofWindow), 0)
 
 		if fd.notification != nil {
 			notificationMessage := fmt.Sprintf("*Fault detected*, state root does not match:\noutputIndex: %d\nExpectedStateRoot: %s\nCalculatedStateRoot: %s\nFinalizationTime: %s", fd.currentOutputIndex, expectedOutputRoot, calculatedOutputRoot, finalizationTime)
 			if err := fd.notification.Notify(notificationMessage); err != nil {
-				fd.logger.Errorf("Error while sending notification, %w", err)
+				fd.logger.Errorf("Error while sending notification, %v", err)
 			}
 		}
 
@@ -265,13 +270,24 @@ func (fd *FaultDetector) checkFault() error {
 	// Time taken to execute each batch in milliseconds.
 	elapsedTime := time.Since(startTime).Milliseconds()
 	fd.logger.Infof("Successfully checked current batch with index %d --> ok, time taken %dms.", fd.currentOutputIndex, elapsedTime)
+	fd.mutex.Lock()
 	fd.diverged = false
+	fd.mutex.Unlock()
+
 	fd.currentOutputIndex++
 	fd.metrics.stateMismatch.Set(0)
 	return nil
 }
 
-func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.ChainAPIClient, l2RpcApi *chain.ChainAPIClient, oracleContractAccessor OracleAccessor, faultProofWindow uint64, currentOutputIndex uint64, metrics *faultDetectorMetrics, notification *notification.Notification, diverged bool, wg *sync.WaitGroup, errorChan chan error) *FaultDetector {
+// IsFaultDetected returns status of the fault detector.
+func (fd *FaultDetector) IsFaultDetected() bool {
+	fd.mutex.RLock()
+	defer fd.mutex.RUnlock()
+	return fd.diverged
+}
+
+// GetFaultDetector create [FaultDetector] instance from input values.
+func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.ChainAPIClient, l2RpcApi *chain.ChainAPIClient, oracleContractAccessor OracleAccessor, faultProofWindow uint64, currentOutputIndex uint64, metrics *faultDetectorMetrics, notification *notification.Notification, diverged bool, wg *sync.WaitGroup, errorChan chan error, mutex *sync.RWMutex) *FaultDetector {
 	return &FaultDetector{
 		ctx:                    ctx,
 		logger:                 logger,
@@ -285,5 +301,6 @@ func GetFaultDetector(ctx context.Context, logger log.Logger, l1RpcApi *chain.Ch
 		diverged:               diverged,
 		metrics:                metrics,
 		notification:           notification,
+		mutex:                  mutex,
 	}
 }

@@ -25,12 +25,12 @@ type OracleAccessor interface {
 func FindFirstUnfinalizedOutputIndex(ctx context.Context, logger log.Logger, fpw uint64, oracleAccessor OracleAccessor, l2RpcApi ChainAPIClient) (uint64, error) {
 	latestBlockHeader, err := l2RpcApi.GetLatestBlockHeader(ctx)
 	if err != nil {
-		logger.Errorf("Failed to get latest block header from L2 provider, error: %w", err)
+		logger.Errorf("Failed to get latest block header from L2 provider, error: %v", err)
 		return 0, err
 	}
 	totalOutputsBigInt, err := oracleAccessor.GetNextOutputIndex()
 	if err != nil {
-		logger.Errorf("Failed to get next output index, error: %w", err)
+		logger.Errorf("Failed to get next output index, error: %v", err)
 		return 0, err
 	}
 	totalOutputs := encoding.MustConvertBigIntToUint64(totalOutputsBigInt)
@@ -43,7 +43,7 @@ func FindFirstUnfinalizedOutputIndex(ctx context.Context, logger log.Logger, fpw
 		midBigInt := encoding.MustConvertUint64ToBigInt(mid)
 		outputData, err := oracleAccessor.GetL2Output(midBigInt)
 		if err != nil {
-			logger.Errorf("Failed to get L2 output for index: %d, error: %w", midBigInt, err)
+			logger.Errorf("Failed to get L2 output for index: %d, error: %v", midBigInt, err)
 			return 0, err
 		}
 		if outputData.L1Timestamp+fpw < latestBlockHeader.Time {

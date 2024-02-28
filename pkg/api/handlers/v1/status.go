@@ -7,14 +7,13 @@ import (
 )
 
 type statusResponse struct {
-	Status string `json:"status"`
+	Ok bool `json:"ok"`
 }
 
 // GetStatus is the handler for the 'GET /api/v1/status' endpoint.
-func GetStatus(c *gin.Context) {
+func GetStatus(c *gin.Context, isFaultDetected bool) {
 	status := statusResponse{
-		Status: "ok",
+		Ok: !isFaultDetected,
 	}
-
 	c.IndentedJSON(http.StatusOK, status)
 }
