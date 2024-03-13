@@ -11,4 +11,4 @@ builds:
       - arm64
     id: "fault_detector"
     dir: .
-    main: ./cmd/
+    main: ./cmd/faultdetector/
