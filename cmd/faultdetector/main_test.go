@@ -36,7 +36,7 @@ const (
 	port                                = 8088
 	faultProofWindow                    = 1000
 	currentOutputIndex                  = 1
-	l1RpcApi                            = "https://rpc.notadegen.com/eth"
+	l1RpcApi                            = "https://rpc.ankr.com/eth"
 	l2RpcApi                            = "https://mainnet.optimism.io/"
 	faultDetectorStateMismatchMetricKey = "fault_detector_is_state_mismatch"
 	metricValue                         = "value"
@@ -86,21 +86,27 @@ func randTimestamp() (out uint64) {
 	return timestamp
 }
 
-func prepareHTTPServer(t *testing.T, ctx context.Context, logger log.Logger, config *config.Config, wg *sync.WaitGroup, erroChan chan error) *api.HTTPServer {
+func prepareHTTPServer(ctx context.Context, logger log.Logger, config *config.Config, wg *sync.WaitGroup, erroChan chan error) *api.HTTPServer {
 	testServer := api.NewHTTPServer(ctx, logger, wg, config, erroChan)
 	return testServer
 }
 
-func prepareNotification(t *testing.T, ctx context.Context, logger log.Logger, config *config.Config) *notification.Notification {
+func prepareNotification(ctx context.Context, logger log.Logger, config *config.Config) *notification.Notification {
 	slackNotificationClient.On(postMessageContextFnName).Return(channelID, "1234569.1000", nil)
 	testNotificationService := notification.GetNotification(ctx, logger, slackNotificationClient, config.Notification)
 	return testNotificationService
 }
 
-func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, testNotificationService *notification.Notification, wg *sync.WaitGroup, reg *prometheus.Registry, config *config.Config, erroChan chan error, mock bool) *faultdetector.FaultDetector {
-	var fd *faultdetector.FaultDetector
+func prepareFaultDetector(ctx context.Context, logger log.Logger, testNotificationService *notification.Notification, wg *sync.WaitGroup, reg *prometheus.Registry, config *config.Config, erroChan chan error, mock bool) *faultdetector.FaultDetector {
+	var (
+		fd  *faultdetector.FaultDetector
+		err error
+	)
 	if !mock {
-		fd, _ = faultdetector.NewFaultDetector(ctx, logger, erroChan, wg, config.FaultDetectorConfig, reg, testNotificationService)
+		fd, err = faultdetector.NewFaultDetector(ctx, logger, erroChan, wg, config.FaultDetectorConfig, reg, testNotificationService)
+		if err != nil {
+			panic(err)
+		}
 	} else {
 		mx := new(sync.RWMutex)
 		metrics := faultdetector.NewFaultDetectorMetrics(reg)
@@ -143,7 +149,7 @@ func prepareFaultDetector(t *testing.T, ctx context.Context, logger log.Logger, 
 	return fd
 }
 
-func prepareConfig(t *testing.T) *config.Config {
+func prepareConfig() *config.Config {
 	serverPort, err := strconv.Atoi(fmt.Sprintf("%d", port))
 	if err != nil {
 		panic(err)
@@ -245,10 +251,10 @@ func TestMain_E2E(t *testing.T) {
 
 			errorChan := make(chan error)
 			registry := prometheus.NewRegistry()
-			testConfig := prepareConfig(&testing.T{})
-			testServer := prepareHTTPServer(&testing.T{}, ctx, logger, testConfig, &wg, errorChan)
-			testNotificationService := prepareNotification(&testing.T{}, ctx, logger, testConfig)
-			testFaultDetector := prepareFaultDetector(&testing.T{}, ctx, logger, testNotificationService, &wg, registry, testConfig, errorChan, tt.mock)
+			testConfig := prepareConfig()
+			testServer := prepareHTTPServer(ctx, logger, testConfig, &wg, errorChan)
+			testNotificationService := prepareNotification(ctx, logger, testConfig)
+			testFaultDetector := prepareFaultDetector(ctx, logger, testNotificationService, &wg, registry, testConfig, errorChan, tt.mock)
 
 			testServer.RegisterHandler("GET", "/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{Registry: registry, ProcessStartTime: time.Now()}))
 
